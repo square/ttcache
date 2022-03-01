@@ -1,0 +1,11 @@
+version: "3.9"
+services:
+  php:
+    build:
+      context: .
+    working_dir: /var/www
+    volumes:
+      - ".:/var/www"
+    command: tail -f phpunit.xml
+  memcached:
+    image: "memcached:latest"
