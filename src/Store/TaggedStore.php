@@ -38,8 +38,10 @@ class TaggedStore
         if ($r) {
             /** @var TaggedValue $r */
             $storedtags = array_keys($r->tags);
-            $currentHashes = $this->cache->getMultiple($storedtags);
-
+            $currentHashes = [];
+            if (!empty($storedtags)) {
+                $currentHashes = $this->cache->getMultiple($storedtags);
+            }
             if ($this->tagsAreValid($r->tags, $currentHashes)) {
                 return $r;
             }
@@ -122,13 +124,16 @@ class TaggedStore
             $ttlTag = __METHOD__.":ttl:$ttl:".$this->generateHash();
             $tags = [$ttlTag, ... $tags];
         }
-        try {
-            $tagHashes = array_filter(
-                (array) $this->cache->getMultiple($tags),
-                static fn($v) => $v !== null,
-            );
-        } catch (CacheStoreException $e) {
-            $roCache = true;
+
+        if (!empty($tags)) {
+            try {
+                $tagHashes = array_filter(
+                    (array) $this->cache->getMultiple($tags),
+                    static fn($v) => $v !== null,
+                );
+            } catch (CacheStoreException $e) {
+                $roCache = true;
+            }
         }
 
         // Find missing tag hashes
