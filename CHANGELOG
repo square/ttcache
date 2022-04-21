@@ -1,0 +1,7 @@
+**1.0.1**
+
+- fixes issue with cache implementations that always populate keys in `getMulti` even for cases where the value was not found and set the value to `NULL`.
+- `$ttl=null` now means `forever`
+
+**1.0.0**
+Initial release
