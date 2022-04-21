@@ -55,12 +55,12 @@ class TaggedStore
      * - a TaggedValue wrapping the given value (if using a GetTaggedValueInterface directive)
      *
      * @param string $key
-     * @param integer $ttl
+     * @param int|null $ttl
      * @param array $taghashes
      * @param TaggedValue|mixed $value
      * @return mixed
      */
-    public function store(string $key, int $ttl, array $taghashes, $value)
+    public function store(string $key, ?int $ttl, array $taghashes, $value)
     {
         // store result
         $v = new TaggedValue($value, $taghashes);
@@ -112,21 +112,28 @@ class TaggedStore
     /**
      * Get the current taghashes from the cache store or create and store new ones if they don't exist
      */
-    public function fetchOrMakeTagHashes(array $tags, int $ttl = 0) : array
+    public function fetchOrMakeTagHashes(array $tags, ?int $ttl = null) : array
     {
-        $ttlTag = __METHOD__.":ttl:$ttl:".$this->generateHash();
         // Should the cache be marked as readonly mode?
         $roCache = false;
         $tagHashes = [];
+        $ttlTag = '';
+        if ($ttl !== null) {
+            $ttlTag = __METHOD__.":ttl:$ttl:".$this->generateHash();
+            $tags = [$ttlTag, ... $tags];
+        }
         try {
-            $tagHashes = $this->cache->getMultiple([$ttlTag, ...$tags]);
+            $tagHashes = array_filter(
+                (array) $this->cache->getMultiple($tags),
+                static fn($v) => $v !== null,
+            );
         } catch (CacheStoreException $e) {
             $roCache = true;
         }
 
         // Find missing tag hashes
         $missingHashes = [];
-        foreach ([$ttlTag, ...$tags] as $tag) {
+        foreach ($tags as $tag) {
             if (!array_key_exists($tag, $tagHashes)) {
                 $missingHashes[$tag] = $this->generateHash();
             }
@@ -134,7 +141,7 @@ class TaggedStore
         if (!$roCache) {
             // Add missing hashes to MC
             $this->cache->setMultiple($missingHashes, self::TAGS_TTL);
-            if ($ttl > 0) {
+            if ($ttl !== null) {
                 $this->cache->set($ttlTag, $missingHashes[$ttlTag], $ttl);
             } else {
                 unset($missingHashes[$ttlTag]);
