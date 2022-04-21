@@ -52,7 +52,7 @@ class TTCache
      *
      * @param string $key                       The unique key where this value will be cached
      * @param callable $cb                      The callback to compute the value to cache
-     * @param int $ttl                          How long this value should stay in cache. A ttl applied in a nested
+     * @param int|null $ttl                     How long this value should stay in cache. A ttl applied in a nested
      *                                          call to `remember` will also apply to any value coming in a wrapping
      *                                          call to the "remember" setting the ttl. If multiple such TTL calls
      *                                          exist in nested calls, the shortest one will win.
@@ -69,7 +69,7 @@ class TTCache
      * @phpstan-ignore-next-line
      * @throws \Psr\SimpleCache\InvalidArgumentException
      */
-    public function remember(string $key, int $ttl, array $tags, callable $cb)
+    public function remember(string $key, ?int $ttl, array $tags, callable $cb)
     {
         $hkey = $this->hashedkey($key);
         $htags = array_map([$this, 'hashedTag'], $tags);

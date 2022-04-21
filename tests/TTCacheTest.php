@@ -34,11 +34,11 @@ class TTCacheTest extends TestCase
      */
     function cache()
     {
-        $v = $this->tt->remember('testkey', 0, [], fn () => 'hello 1');
+        $v = $this->tt->remember('testkey', null, [], fn () => 'hello 1');
         $this->assertEquals('hello 1', $v);
         // If we use the same key but a different callback that returns something different, we should still get
         // the previously cached value.
-        $v = $this->tt->remember('testkey', 0, [], fn () => 'hello 2');
+        $v = $this->tt->remember('testkey', null, [], fn () => 'hello 2');
         $this->assertEquals('hello 1', $v);
     }
 
@@ -47,14 +47,14 @@ class TTCacheTest extends TestCase
      */
     function clear_by_tags()
     {
-        $v = $this->tt->remember('testkey', 0, ['tag', 'other:tag'], fn () => 'hello 1');
+        $v = $this->tt->remember('testkey', null, ['tag', 'other:tag'], fn () => 'hello 1');
         $this->assertEquals('hello 1', $v);
         // now it's cached
-        $v = $this->tt->remember('testkey', 0, [], fn () => 'hello 2');
+        $v = $this->tt->remember('testkey', null, [], fn () => 'hello 2');
         $this->assertEquals('hello 1', $v);
         // clear `tag`
         $this->tt->clearTags('tag');
-        $v = $this->tt->remember('testkey', 0, [], fn () => 'hello 2');
+        $v = $this->tt->remember('testkey', null, [], fn () => 'hello 2');
         $this->assertEquals('hello 2', $v);
     }
 
@@ -63,16 +63,16 @@ class TTCacheTest extends TestCase
      */
     function avoids_root_tags_contamination()
     {
-        $v = $this->tt->remember('testkey', 0, ['tag', 'other:tag'], fn () => 'hello 1');
+        $v = $this->tt->remember('testkey', null, ['tag', 'other:tag'], fn () => 'hello 1');
         $this->assertEquals('hello 1', $v);
-        $v = $this->tt->remember('testkey2', 0, [], fn () => 'hello 2');
+        $v = $this->tt->remember('testkey2', null, [], fn () => 'hello 2');
         $this->assertEquals('hello 2', $v);
         // now it's cached
-        $v = $this->tt->remember('testkey2', 0, [], fn () => 'hello 3');
+        $v = $this->tt->remember('testkey2', null, [], fn () => 'hello 3');
         $this->assertEquals('hello 2', $v);
         // clear `tag`
         $this->tt->clearTags('tag');
-        $v = $this->tt->remember('testkey2', 0, [], fn () => 'hello 3');
+        $v = $this->tt->remember('testkey2', null, [], fn () => 'hello 3');
         $this->assertEquals('hello 2', $v);
     }
 
@@ -81,12 +81,12 @@ class TTCacheTest extends TestCase
      */
     function tree_cache()
     {
-        $built = $this->tt->remember('main', 0, [], function () {
+        $built = $this->tt->remember('main', null, [], function () {
             $out = "hello";
-            $out .= $this->tt->remember('sub', 0, ['sub:1'], function () {
+            $out .= $this->tt->remember('sub', null, ['sub:1'], function () {
                 return " dear ";
             });
-            $out .= $this->tt->remember('sub2', 0, ['sub:2'], function () {
+            $out .= $this->tt->remember('sub2', null, ['sub:2'], function () {
                 return "world!";
             });
 
@@ -96,16 +96,16 @@ class TTCacheTest extends TestCase
         $this->assertEquals($built, 'hello dear world!');
 
         // Now it's cached
-        $built = $this->tt->remember('main', 0, [], fn () => 'hello wholesome world!');
+        $built = $this->tt->remember('main', null, [], fn () => 'hello wholesome world!');
         $this->assertEquals($built, 'hello dear world!');
 
         // clear one of the sub tags
         $this->tt->clearTags('sub:1');
         // sub2 is still in cache
-        $sub2 = $this->tt->remember('sub2', 0, [], fn () => 'oh no');
+        $sub2 = $this->tt->remember('sub2', null, [], fn () => 'oh no');
         $this->assertEquals('world!', $sub2);
 
-        $built = $this->tt->remember('main', 0, [], fn () => 'hello wholesome world!');
+        $built = $this->tt->remember('main', null, [], fn () => 'hello wholesome world!');
         $this->assertEquals($built, 'hello wholesome world!');
     }
 
@@ -114,12 +114,12 @@ class TTCacheTest extends TestCase
      */
     function handles_exceptions()
     {
-        $built = fn () => $this->tt->remember('main', 0, [], function () {
+        $built = fn () => $this->tt->remember('main', null, [], function () {
             $out = "hello";
-            $out .= $this->tt->remember('sub', 0, ['sub:1'], function () {
+            $out .= $this->tt->remember('sub', null, ['sub:1'], function () {
                 return " dear ";
             });
-            $out .= $this->tt->remember('sub2', 0, ['sub:2'], function () {
+            $out .= $this->tt->remember('sub2', null, ['sub:2'], function () {
                 throw new \Exception('whoopsie');
             });
 
@@ -131,9 +131,9 @@ class TTCacheTest extends TestCase
         } catch (\Exception $e) {
             // nothing
         }
-        $this->assertEquals(' dear ', $this->tt->remember('sub', 0, [], fn () => 'failure'));
-        $this->assertEquals('failure', $this->tt->remember('main', 0, [], fn () => 'failure'));
-        $this->assertEquals('failure', $this->tt->remember('sub2', 0, [], fn () => 'failure'));
+        $this->assertEquals(' dear ', $this->tt->remember('sub', null, [], fn () => 'failure'));
+        $this->assertEquals('failure', $this->tt->remember('main', null, [], fn () => 'failure'));
+        $this->assertEquals('failure', $this->tt->remember('sub2', null, [], fn () => 'failure'));
     }
 
     /**
@@ -166,7 +166,7 @@ class TTCacheTest extends TestCase
 
         $this->tt = new TTCache($store);
 
-        $built = fn() => $this->tt->remember('full-collection', 0, [], function () use ($coll) {
+        $built = fn() => $this->tt->remember('full-collection', null, [], function () use ($coll) {
             $posts = [];
             $keys = [];
             foreach ($coll as $post) {
@@ -176,7 +176,7 @@ class TTCacheTest extends TestCase
 
             foreach ($coll as $post) {
                 $key = __CLASS__.':blog-collection:'.$post->id;
-                $posts[] = $this->tt->remember($key, 0, ['post:'.$post->id], fn () => "<h1>$post->title</h1><hr /><div>$post->content</div>");
+                $posts[] = $this->tt->remember($key, null, ['post:'.$post->id], fn () => "<h1>$post->title</h1><hr /><div>$post->content</div>");
             }
 
             return $posts;
@@ -244,12 +244,12 @@ class TTCacheTest extends TestCase
      */
     function if_sub_ttl_expires_then_sup_expires_too()
     {
-        $built = $this->tt->remember('main',0, [], function () {
+        $built = $this->tt->remember('main',null, [], function () {
             $out = "hello";
             $out .= $this->tt->remember('sub', 1, ['sub:1'], function () {
                 return " dear ";
             });
-            $out .= $this->tt->remember('sub2', 0, ['sub:2'], function () {
+            $out .= $this->tt->remember('sub2', null, ['sub:2'], function () {
                 return "world!";
             });
 
@@ -259,13 +259,13 @@ class TTCacheTest extends TestCase
         $this->assertEquals($built, 'hello dear world!');
 
         // Now it's cached
-        $built = $this->tt->remember('main', 0, [], fn () => 'hello wholesome world!');
+        $built = $this->tt->remember('main', null, [], fn () => 'hello wholesome world!');
         $this->assertEquals($built, 'hello dear world!');
 
         sleep(1);
 
         // Now it's been evicted due to ttl
-        $built = $this->tt->remember('main', 0, [], fn () => 'hello wholesome world!');
+        $built = $this->tt->remember('main', null, [], fn () => 'hello wholesome world!');
         $this->assertEquals($built, 'hello wholesome world!');
     }
 
@@ -275,7 +275,7 @@ class TTCacheTest extends TestCase
     function cache_can_be_bypassed_based_on_result()
     {
         $counter = $this->counter();
-        $built = fn () => $this->tt->remember('main',0, [], function () use ($counter) {
+        $built = fn () => $this->tt->remember('main', null, [], function () use ($counter) {
             $counter->increment();
             return new BypassCache('hello');
         });
@@ -292,7 +292,7 @@ class TTCacheTest extends TestCase
      */
     function can_retrieve_value_and_its_tags()
     {
-        $built = fn () => $this->tt->remember('main',0, ['abc', 'def'], function () {
+        $built = fn () => $this->tt->remember('main', null, ['abc', 'def'], function () {
             return new GetTaggedValue('hello');
         });
 
@@ -307,16 +307,16 @@ class TTCacheTest extends TestCase
     function deep_tree_cache()
     {
         $counter = $this->counter();
-        $built = fn () => $this->tt->remember('main', 0, [], function () use ($counter) {
+        $built = fn () => $this->tt->remember('main', null, [], function () use ($counter) {
             $counter->increment();
             $out = "hello";
-            $out .= $this->tt->remember('sub', 0, ['sub:1'], function () use ($counter) {
+            $out .= $this->tt->remember('sub', null, ['sub:1'], function () use ($counter) {
                 $counter->increment();
                 $out = " dear ";
-                $out .= $this->tt->remember('sub2', 0, ['sub:2'], function () use ($counter) {
+                $out .= $this->tt->remember('sub2', null, ['sub:2'], function () use ($counter) {
                     $counter->increment();
                     $out = "world";
-                    $out .= $this->tt->remember('sub3', 0, ['sub:3'], function () use ($counter) {
+                    $out .= $this->tt->remember('sub3', null, ['sub:3'], function () use ($counter) {
                         $counter->increment();
                         return '!';
                     });
@@ -354,16 +354,16 @@ class TTCacheTest extends TestCase
     function tags_can_get_inherited_from_parent_node()
     {
         $counter = $this->counter();
-        $built = fn () => $this->tt->remember('main', 0, ['main', new HeritableTag('global')], function () use ($counter) {
+        $built = fn () => $this->tt->remember('main', null, ['main', new HeritableTag('global')], function () use ($counter) {
             $counter->increment();
             $out = "hello";
-            $out .= $this->tt->remember('sub', 0, ['sub:1'], function () use ($counter) {
+            $out .= $this->tt->remember('sub', null, ['sub:1'], function () use ($counter) {
                 $counter->increment();
                 $out = " dear ";
-                $out .= $this->tt->remember('sub2', 0, ['sub:2', new HeritableTag('subglobal')], function () use ($counter) {
+                $out .= $this->tt->remember('sub2', null, ['sub:2', new HeritableTag('subglobal')], function () use ($counter) {
                     $counter->increment();
                     $out = "world";
-                    $out .= $this->tt->remember('sub3', 0, ['sub:3'], function () use ($counter) {
+                    $out .= $this->tt->remember('sub3', null, ['sub:3'], function () use ($counter) {
                         $counter->increment();
                         return '!';
                     });
@@ -410,13 +410,13 @@ class TTCacheTest extends TestCase
         $built = fn () => $this->tt->wrap(['main', new HeritableTag('global')], function () use ($counter) {
             $counter->increment();
             $out = "hello";
-            $out .= $this->tt->remember('sub', 0, ['sub:1'], function () use ($counter) {
+            $out .= $this->tt->remember('sub', null, ['sub:1'], function () use ($counter) {
                 $counter->increment();
                 $out = " dear ";
                 $out .= $this->tt->wrap(['sub:2', new HeritableTag('subglobal')], function () use ($counter) {
                     $counter->increment();
                     $out = "world";
-                    $out .= $this->tt->remember('sub3', 0, ['sub:3'], function () use ($counter) {
+                    $out .= $this->tt->remember('sub3', null, ['sub:3'], function () use ($counter) {
                         $counter->increment();
                         return '!';
                     });
@@ -461,16 +461,16 @@ class TTCacheTest extends TestCase
     function additional_tags()
     {
         $counter = $this->counter();
-        $built = fn () => $this->tt->remember('main', 0, [], function () use ($counter) {
+        $built = fn () => $this->tt->remember('main', null, [], function () use ($counter) {
             $counter->increment();
             $out = "hello";
-            $out .= $this->tt->remember('sub', 0, ['sub:1', 'subs:all'], function () use ($counter) {
+            $out .= $this->tt->remember('sub', null, ['sub:1', 'subs:all'], function () use ($counter) {
                 $counter->increment();
                 $out = " dear ";
-                $out .= $this->tt->remember('sub2', 0, ['sub:2'], function () use ($counter) {
+                $out .= $this->tt->remember('sub2', null, ['sub:2'], function () use ($counter) {
                     $counter->increment();
                     $out = "world";
-                    $out .= $this->tt->remember('sub3', 0, ['sub:3', ...Tags::fromMap(['subs' => 'deep','ocean' => 'verydeep'])], function () use ($counter) {
+                    $out .= $this->tt->remember('sub3', null, ['sub:3', ...Tags::fromMap(['subs' => 'deep','ocean' => 'verydeep'])], function () use ($counter) {
                         $counter->increment();
                         return '!';
                     });
@@ -520,8 +520,8 @@ class TTCacheTest extends TestCase
     {
         $main = $this->counter();
         $sub = $this->counter();
-        $built = fn () => $this->tt->remember('main', 0, [new ShardingTag('shard', 'abc', 2)], fn () => 'main'.$main->increment());
-        $built2 = fn () => $this->tt->remember('sub', 0, [new ShardingTag('shard', 'def', 2)], fn () => 'sub'.$sub->increment());
+        $built = fn () => $this->tt->remember('main', null, [new ShardingTag('shard', 'abc', 2)], fn () => 'main'.$main->increment());
+        $built2 = fn () => $this->tt->remember('sub', null, [new ShardingTag('shard', 'def', 2)], fn () => 'sub'.$sub->increment());
 
         $this->assertEquals('main1', $built());
         $this->assertEquals('sub1', $built2());
