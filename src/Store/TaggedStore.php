@@ -12,7 +12,7 @@ use Square\TTCache\TaggedValue;
  */
 class TaggedStore
 {
-    protected const TAGS_TTL = 0;
+    protected const TAGS_TTL = null;
 
     protected CacheInterface $cache;
 
