@@ -17,9 +17,14 @@ class TaggedStore
 
     protected CacheInterface $cache;
 
-    public function __construct(CacheInterface $cache)
+    private string $specialKeyDelimeter;
+
+    private const TTL_CACHE_PREFIX = '__TTCache_TTL__';
+
+    public function __construct(CacheInterface $cache, string $specialKeyDelimeter)
     {
         $this->cache = $cache;
+        $this->specialKeyDelimeter = $specialKeyDelimeter;
     }
 
     /**

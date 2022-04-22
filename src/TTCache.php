@@ -31,20 +31,26 @@ class TTCache
 
     protected TaggedStore $cache;
 
-    public function __construct(CacheInterface $cache, Closure $keyHasher = null)
+    /**
+     * @var string
+     */
+    private string $specialKeyDelimeter;
+
+    public function __construct(CacheInterface $cache, Closure $keyHasher = null, string $specialKeyDelimeter = ':')
     {
-        $this->cache = new TaggedStore($cache);
+        $this->cache = new TaggedStore($cache, $specialKeyDelimeter);
         $this->keyHasher = $keyHasher ?? fn ($x) => $x;
+        $this->specialKeyDelimeter = $specialKeyDelimeter;
     }
 
     protected function hashedKey(string $k) : string
     {
-        return 'k:'.($this->keyHasher)($k);
+        return 'k' . $this->specialKeyDelimeter . ($this->keyHasher)($k);
     }
 
     protected function hashedTag(string $t) : string
     {
-        return 't:'.($this->keyHasher)($t);
+        return 't' . $this->specialKeyDelimeter . ($this->keyHasher)($t);
     }
 
     /**
