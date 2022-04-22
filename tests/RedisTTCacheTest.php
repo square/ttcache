@@ -15,14 +15,15 @@ class RedisTTCacheTest extends TTCacheTest
      */
     private Redis $redis;
 
-    protected $keySeparator = '|';
-
+    /**
+     * @return TTCache
+     */
     public function getTTCache(): TTCache
     {
         $this->redis = new Redis();
         $this->redis->connect('redis');
-        $store = new RedisCachePool($this->redis);
-        return new TTCache($store, $this->getKeyHasher(), $this->keySeparator);
+        $this->keySeparator = TTCache::cachePoolKeyDelimiter();
+        return TTCache::newWithCachePool(new RedisCachePool($this->redis));
     }
 
     /**
@@ -30,9 +31,7 @@ class RedisTTCacheTest extends TTCacheTest
      */
     public function getKeyHasher(): Closure
     {
-        return function ($k) {
-            return str_replace(':', '|', $k);
-        };
+        return TTCache::cachePoolKeyHasher();
     }
 
     public function tearDown(): void

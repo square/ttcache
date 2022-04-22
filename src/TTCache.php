@@ -2,6 +2,7 @@
 
 namespace Square\TTCache;
 
+use Cache\Adapter\Common\AbstractCachePool;
 use Closure;
 use Psr\SimpleCache\CacheInterface;
 use Square\TTCache\ReturnDirective\BypassCacheInterface;
@@ -222,5 +223,43 @@ class TTCache
     {
         $htags = array_map([$this, 'hashedTag'], $tags);
         $this->cache->clearTags(...$htags);
+    }
+
+    /**
+     * Returns an instance of TTCache specifically configured for use w/
+     * Cache\Adapter\Common\AbstractCachePool instances. It prevents the use of
+     * the use of reserved characters in cache keys
+     *
+     * @param AbstractCachePool $cachePool
+     * @return TTCache
+     */
+    public static function newWithCachePool(AbstractCachePool $cachePool): TTCache
+    {
+        return new TTCache(
+            $cachePool,
+            self::cachePoolKeyHasher(),
+            self::cachePoolKeyDelimiter(),
+        );
+    }
+
+    /**
+     * @return Closure
+     */
+    public static function cachePoolKeyHasher(): Closure
+    {
+        /**
+         * This regex pattern captures the reserve chars in cache/adapter-common.
+         * It replaces instances of such characters w/ the "|" character.
+         */
+        return static fn($k) => preg_replace('|[\{\}\(\)/\\\@\:]|', self::cachePoolKeyDelimiter(), $k);
+    }
+
+    /**
+     * Returns a character that is not a reserved character in cache/adapter-common
+     * @return string
+     */
+    public static function cachePoolKeyDelimiter(): string
+    {
+        return '|';
     }
 }

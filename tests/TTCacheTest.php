@@ -32,7 +32,7 @@ abstract class TTCacheTest extends TestCase
     abstract public function getKeyHasher(): Closure;
 
     /**
-     * @return CacheInterface
+     * @return TTCache
      */
     abstract public function getTTCache(): TTCache;
 
