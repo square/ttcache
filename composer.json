@@ -8,6 +8,11 @@
             "Square\\TTCache\\": "src/"
         }
     },
+    "autoload-dev": {
+        "psr-4": {
+            "Square\\TTCache\\": "tests/"
+        }
+    },
     "authors": [
         {
             "name": "Khepin",
