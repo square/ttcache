@@ -125,7 +125,7 @@ class TTCache
         $htags = array_map([$this, 'hashedTag'], $tags);
         $isRoot = $this->initTree();
 
-        ['taghashes' => $tagHashes] = $this->cache->fetchOrMakeTagHashes($htags, 0);
+        ['taghashes' => $tagHashes] = $this->cache->fetchOrMakeTagHashes($htags, null);
 
         // Advance in the tree nodes
         $parent = $this->advanceTree($tagHashes, $tags);
