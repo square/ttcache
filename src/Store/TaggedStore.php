@@ -2,6 +2,7 @@
 
 namespace Square\TTCache\Store;
 
+use Iterator;
 use Psr\SimpleCache\CacheInterface;
 use Square\TTCache\ReturnDirective\GetTaggedValueInterface;
 use Square\TTCache\TaggedValue;
@@ -121,14 +122,26 @@ class TaggedStore
         $tagHashes = [];
         $ttlTag = '';
         if ($ttl !== null) {
-            $ttlTag = __METHOD__.":ttl:$ttl:".$this->generateHash();
+            $ttlTag = implode(
+                $this->specialKeyDelimeter,
+                [
+                    self::TTL_CACHE_PREFIX,
+                    'ttl',
+                    $ttl,
+                    $this->generateHash(),
+                ],
+            );
             $tags = [$ttlTag, ... $tags];
         }
 
         if (!empty($tags)) {
             try {
+                $tagHashes = $this->cache->getMultiple($tags);
+                if ($tagHashes instanceof Iterator) {
+                    $tagHashes = iterator_to_array($tagHashes) ;
+                }
                 $tagHashes = array_filter(
-                    (array) $this->cache->getMultiple($tags),
+                    $tagHashes,
                     static fn($v) => $v !== null,
                 );
             } catch (CacheStoreException $e) {
@@ -185,11 +198,14 @@ class TaggedStore
      * Verify that the tagHashes are valid when compared to the cache store's current hashes
      *
      * @param array $tagHashes the tag hashes retrieved on a cached value
-     * @param array $currentHashes the tag hashes as they now exist in the cache
+     * @param iterable $currentHashes the tag hashes as they now exist in the cache
      * @return boolean
      */
-    protected function tagsAreValid(array $tagHashes, array $currentHashes): bool
+    protected function tagsAreValid(array $tagHashes, iterable $currentHashes): bool
     {
+        if ($currentHashes instanceof Iterator) {
+           $currentHashes = iterator_to_array($currentHashes);
+        }
         foreach ($tagHashes as $tag => $hash) {
             if ($hash !== ($currentHashes[$tag] ?? null)) {
                 return false;
