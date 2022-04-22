@@ -47,6 +47,9 @@ class TaggedStore
             $currentHashes = [];
             if (!empty($storedtags)) {
                 $currentHashes = $this->cache->getMultiple($storedtags);
+                if ($currentHashes instanceof Iterator) {
+                    $currentHashes = iterator_to_array($currentHashes);
+                }
             }
             if ($this->tagsAreValid($r->tags, $currentHashes)) {
                 return $r;
@@ -92,6 +95,9 @@ class TaggedStore
     public function getMultiple(array $keys)
     {
         $r = $this->cache->getMultiple($keys);
+        if ($r instanceof Iterator) {
+            $r = iterator_to_array($r);
+        }
 
         $allTags = [];
         /** @var TaggedValue $tv */
@@ -104,6 +110,9 @@ class TaggedStore
         }
 
         $allCurrentTagHashes = $this->cache->getMultiple($allTags);
+        if ($allCurrentTagHashes instanceof Iterator) {
+            $allCurrentTagHashes = iterator_to_array($allCurrentTagHashes);
+        }
 
         $validResults = [];
         /** @var string $k */
@@ -203,14 +212,11 @@ class TaggedStore
      * Verify that the tagHashes are valid when compared to the cache store's current hashes
      *
      * @param array $tagHashes the tag hashes retrieved on a cached value
-     * @param iterable $currentHashes the tag hashes as they now exist in the cache
+     * @param array $currentHashes the tag hashes as they now exist in the cache
      * @return boolean
      */
-    protected function tagsAreValid(array $tagHashes, iterable $currentHashes): bool
+    protected function tagsAreValid(array $tagHashes, array $currentHashes): bool
     {
-        if ($currentHashes instanceof Iterator) {
-           $currentHashes = iterator_to_array($currentHashes);
-        }
         foreach ($tagHashes as $tag => $hash) {
             if ($hash !== ($currentHashes[$tag] ?? null)) {
                 return false;
