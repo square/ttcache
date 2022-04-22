@@ -7,6 +7,7 @@ use Psr\SimpleCache\CacheInterface;
 use Square\TTCache\ReturnDirective\BypassCache;
 use Square\TTCache\ReturnDirective\GetTaggedValue;
 use Square\TTCache\Store\ShardedMemcachedStore;
+use Square\TTCache\Store\TaggedStore;
 use Square\TTCache\Tags\HeritableTag;
 use Square\TTCache\TTCache;
 use PHPUnit\Framework\TestCase;
@@ -466,5 +467,114 @@ abstract class TTCacheTest extends TestCase
                 $this->c = 0;
             }
         };
+    }
+
+    /**
+     * @test
+     */
+    function retrieving_parts_of_a_collection_still_applies_all_tags()
+    {
+        $coll = [
+            new BlogPost('abc', 'Learn PHP the curved way', '...'),
+            new BlogPost('def', 'Learn Python the curved way', '...'),
+            new BlogPost('ghi', 'Learn Javascript the curved way', '...'),
+            new BlogPost('klm', 'Learn Rust the curved way', '...'),
+            new BlogPost('nop', 'Learn Go the curved way', '...'),
+        ];
+
+        /*
+         * Very hacky, but we are using reflection here to add a layer around
+         * the inner-most CacheInterface that tracks the keys requested by the TaggedStore
+         * via $store->get(...). e.g.:
+         */
+        $reflClass = new \ReflectionClass(TTCache::class);
+        $reflProperty = $reflClass->getProperty('cache');
+        $reflProperty->setAccessible(true);
+        // This is the TaggedStore instance on TTCache. This would contain the CacheInterface we want to track.
+        $taggedStore = $reflProperty->getValue($this->tt);
+        $reflClass = new \ReflectionClass(TaggedStore::class);
+        $reflProperty = $reflClass->getProperty('cache');
+        $reflProperty->setAccessible(true);
+        /**
+         * This is the inner-most CacheInterface.
+         * @var CacheInterface $origStore
+         */
+        $origStore = $reflProperty->getValue($taggedStore);
+
+        // We will add the layer around it, and set it back to the TaggedStore.
+        $store = new KeyTracker($origStore);
+        $reflProperty->setValue($taggedStore, $store);
+
+        $built = fn() => $this->tt->remember('full-collection', null, [], function () use ($coll) {
+            $posts = [];
+            $keys = [];
+            foreach ($coll as $post) {
+                $keys[] = __CLASS__.':blog-collection:'.$post->id;
+            }
+            $this->tt->load($keys);
+
+            foreach ($coll as $post) {
+                $key = __CLASS__.':blog-collection:'.$post->id;
+                $posts[] = $this->tt->remember($key, null, ['post:'.$post->id], fn () => "<h1>$post->title</h1><hr /><div>$post->content</div>");
+            }
+
+            return $posts;
+        });
+
+
+        $this->assertEquals([
+            "<h1>Learn PHP the curved way</h1><hr /><div>...</div>",
+            "<h1>Learn Python the curved way</h1><hr /><div>...</div>",
+            "<h1>Learn Javascript the curved way</h1><hr /><div>...</div>",
+            "<h1>Learn Rust the curved way</h1><hr /><div>...</div>",
+            "<h1>Learn Go the curved way</h1><hr /><div>...</div>",
+        ], $built());
+        $this->assertEquals([
+            'k' . $this->keySeparator . $this->getKeyHasher()('full-collection'),
+            'k' . $this->keySeparator . $this->getKeyHasher()('Square\TTCache\TTCacheTest:blog-collection:abc'),
+            'k' . $this->keySeparator . $this->getKeyHasher()('Square\TTCache\TTCacheTest:blog-collection:def'),
+            'k' . $this->keySeparator . $this->getKeyHasher()('Square\TTCache\TTCacheTest:blog-collection:ghi'),
+            'k' . $this->keySeparator . $this->getKeyHasher()('Square\TTCache\TTCacheTest:blog-collection:klm'),
+            'k' . $this->keySeparator . $this->getKeyHasher()('Square\TTCache\TTCacheTest:blog-collection:nop'),
+        ], $store->requestedKeys);
+
+        // When we call `built()` again, all the data should be pre-loaded and therefore come without talking to MC
+        $store->requestedKeys = [];
+        $built();
+        $this->assertEquals([
+            'k' . $this->keySeparator . $this->getKeyHasher()('full-collection'),
+        ], $store->requestedKeys);
+
+        // Clear tag for "abc" and change the title for "abc"
+        $this->tt->clearTags('post:'.$coll[0]->id);
+        $store->requestedKeys = [];
+        $coll[0]->title = 'Learn PHP the straight way';
+        $this->assertEquals([
+            "<h1>Learn PHP the straight way</h1><hr /><div>...</div>",
+            "<h1>Learn Python the curved way</h1><hr /><div>...</div>",
+            "<h1>Learn Javascript the curved way</h1><hr /><div>...</div>",
+            "<h1>Learn Rust the curved way</h1><hr /><div>...</div>",
+            "<h1>Learn Go the curved way</h1><hr /><div>...</div>",
+        ], $built());
+        $this->assertEquals([
+            'k' . $this->keySeparator . $this->getKeyHasher()('full-collection'),
+            'k' . $this->keySeparator . $this->getKeyHasher()('Square\TTCache\TTCacheTest:blog-collection:abc'),
+        ], $store->requestedKeys);
+
+        // Newly cached value still contains all the tags. So clearing by another tag will also work.
+        $this->tt->clearTags('post:'.$coll[1]->id);
+        $store->requestedKeys = [];
+        $coll[1]->title = 'Learn Python the straight way';
+        $this->assertEquals([
+            "<h1>Learn PHP the straight way</h1><hr /><div>...</div>",
+            "<h1>Learn Python the straight way</h1><hr /><div>...</div>",
+            "<h1>Learn Javascript the curved way</h1><hr /><div>...</div>",
+            "<h1>Learn Rust the curved way</h1><hr /><div>...</div>",
+            "<h1>Learn Go the curved way</h1><hr /><div>...</div>",
+        ], $built());
+        $this->assertEquals([
+            'k' . $this->keySeparator . $this->getKeyHasher()('full-collection'),
+            'k' . $this->keySeparator . $this->getKeyHasher()('Square\TTCache\TTCacheTest:blog-collection:def'),
+        ], $store->requestedKeys);
     }
 }
