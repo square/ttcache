@@ -17,14 +17,11 @@ class TaggedStore
 
     protected CacheInterface $cache;
 
-    private string $specialKeyDelimeter;
-
     private const TTL_CACHE_PREFIX = '__TTCache_TTL__';
 
-    public function __construct(CacheInterface $cache, string $specialKeyDelimeter)
+    public function __construct(CacheInterface $cache)
     {
         $this->cache = $cache;
-        $this->specialKeyDelimeter = $specialKeyDelimeter;
     }
 
     /**
@@ -137,7 +134,7 @@ class TaggedStore
         $ttlTag = '';
         if ($ttl !== null) {
             $ttlTag = implode(
-                $this->specialKeyDelimeter,
+                '-',
                 [
                     self::TTL_CACHE_PREFIX,
                     'ttl',

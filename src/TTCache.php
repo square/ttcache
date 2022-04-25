@@ -32,26 +32,20 @@ class TTCache
 
     protected TaggedStore $cache;
 
-    /**
-     * @var string
-     */
-    private string $specialKeyDelimeter;
-
-    public function __construct(CacheInterface $cache, Closure $keyHasher = null, string $specialKeyDelimeter = ':')
+    public function __construct(CacheInterface $cache, Closure $keyHasher = null)
     {
-        $this->cache = new TaggedStore($cache, $specialKeyDelimeter);
-        $this->keyHasher = $keyHasher ?? fn ($x) => $x;
-        $this->specialKeyDelimeter = $specialKeyDelimeter;
+        $this->cache = new TaggedStore($cache);
+        $this->keyHasher = $keyHasher ?? fn ($x) => md5($x);
     }
 
     protected function hashedKey(string $k) : string
     {
-        return 'k' . $this->specialKeyDelimeter . ($this->keyHasher)($k);
+        return 'k-' . ($this->keyHasher)($k);
     }
 
     protected function hashedTag(string $t) : string
     {
-        return 't' . $this->specialKeyDelimeter . ($this->keyHasher)($t);
+        return 't-' . ($this->keyHasher)($t);
     }
 
     /**
@@ -223,43 +217,5 @@ class TTCache
     {
         $htags = array_map([$this, 'hashedTag'], $tags);
         $this->cache->clearTags(...$htags);
-    }
-
-    /**
-     * Returns an instance of TTCache specifically configured for use w/
-     * Cache\Adapter\Common\AbstractCachePool instances. It prevents the use of
-     * the use of reserved characters in cache keys
-     *
-     * @param AbstractCachePool $cachePool
-     * @return TTCache
-     */
-    public static function newWithCachePool(AbstractCachePool $cachePool): TTCache
-    {
-        return new TTCache(
-            $cachePool,
-            self::cachePoolKeyHasher(),
-            self::cachePoolKeyDelimiter(),
-        );
-    }
-
-    /**
-     * @return Closure
-     */
-    public static function cachePoolKeyHasher(): Closure
-    {
-        /**
-         * This regex pattern captures the reserve chars in cache/adapter-common.
-         * It replaces instances of such characters w/ the "|" character.
-         */
-        return static fn($k) => preg_replace('|[\{\}\(\)/\\\@\:]|', self::cachePoolKeyDelimiter(), $k);
-    }
-
-    /**
-     * Returns a character that is not a reserved character in cache/adapter-common
-     * @return string
-     */
-    public static function cachePoolKeyDelimiter(): string
-    {
-        return '|';
     }
 }
