@@ -31,12 +31,4 @@ class MemcacheTTCacheTest extends TTCacheTest
     {
         $this->mc->flush();
     }
-
-    /**
-     * @return Closure
-     */
-    public function getKeyHasher(): Closure
-    {
-        return static fn($k) => $k;
-    }
 }

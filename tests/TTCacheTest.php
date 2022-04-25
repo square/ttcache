@@ -20,17 +20,10 @@ abstract class TTCacheTest extends TestCase
 
     protected Memcached $mc;
 
-    protected $keySeparator = ':';
-
     public function setUp() : void
     {
         $this->tt = $this->getTTCache();
     }
-
-    /**
-     * @return Closure
-     */
-    abstract public function getKeyHasher(): Closure;
 
     /**
      * @return TTCache
@@ -206,8 +199,8 @@ abstract class TTCacheTest extends TestCase
         $this->assertEquals(
             array_keys($built()->tags),
             [
-                't' . $this->keySeparator . $this->getKeyHasher()('abc'),
-                't' . $this->keySeparator . $this->getKeyHasher()('def'),
+                't-' . $this->hash('abc'),
+                't-' . $this->hash('def'),
             ],
         );
     }
@@ -530,19 +523,19 @@ abstract class TTCacheTest extends TestCase
             "<h1>Learn Go the curved way</h1><hr /><div>...</div>",
         ], $built());
         $this->assertEquals([
-            'k' . $this->keySeparator . $this->getKeyHasher()('full-collection'),
-            'k' . $this->keySeparator . $this->getKeyHasher()('Square\TTCache\TTCacheTest:blog-collection:abc'),
-            'k' . $this->keySeparator . $this->getKeyHasher()('Square\TTCache\TTCacheTest:blog-collection:def'),
-            'k' . $this->keySeparator . $this->getKeyHasher()('Square\TTCache\TTCacheTest:blog-collection:ghi'),
-            'k' . $this->keySeparator . $this->getKeyHasher()('Square\TTCache\TTCacheTest:blog-collection:klm'),
-            'k' . $this->keySeparator . $this->getKeyHasher()('Square\TTCache\TTCacheTest:blog-collection:nop'),
+            'k-' . $this->hash('full-collection'),
+            'k-' . $this->hash('Square\TTCache\TTCacheTest:blog-collection:abc'),
+            'k-' . $this->hash('Square\TTCache\TTCacheTest:blog-collection:def'),
+            'k-' . $this->hash('Square\TTCache\TTCacheTest:blog-collection:ghi'),
+            'k-' . $this->hash('Square\TTCache\TTCacheTest:blog-collection:klm'),
+            'k-' . $this->hash('Square\TTCache\TTCacheTest:blog-collection:nop'),
         ], $store->requestedKeys);
 
         // When we call `built()` again, all the data should be pre-loaded and therefore come without talking to MC
         $store->requestedKeys = [];
         $built();
         $this->assertEquals([
-            'k' . $this->keySeparator . $this->getKeyHasher()('full-collection'),
+            'k-' . $this->hash('full-collection'),
         ], $store->requestedKeys);
 
         // Clear tag for "abc" and change the title for "abc"
@@ -557,8 +550,8 @@ abstract class TTCacheTest extends TestCase
             "<h1>Learn Go the curved way</h1><hr /><div>...</div>",
         ], $built());
         $this->assertEquals([
-            'k' . $this->keySeparator . $this->getKeyHasher()('full-collection'),
-            'k' . $this->keySeparator . $this->getKeyHasher()('Square\TTCache\TTCacheTest:blog-collection:abc'),
+            'k-' . $this->hash('full-collection'),
+            'k-' . $this->hash('Square\TTCache\TTCacheTest:blog-collection:abc'),
         ], $store->requestedKeys);
 
         // Newly cached value still contains all the tags. So clearing by another tag will also work.
@@ -573,8 +566,19 @@ abstract class TTCacheTest extends TestCase
             "<h1>Learn Go the curved way</h1><hr /><div>...</div>",
         ], $built());
         $this->assertEquals([
-            'k' . $this->keySeparator . $this->getKeyHasher()('full-collection'),
-            'k' . $this->keySeparator . $this->getKeyHasher()('Square\TTCache\TTCacheTest:blog-collection:def'),
+            'k-' . $this->hash('full-collection'),
+            'k-' . $this->hash('Square\TTCache\TTCacheTest:blog-collection:def'),
         ], $store->requestedKeys);
+    }
+
+    /**
+     * The hashing function being used in tests. Using the default here, which is md5 (https://www.php.net/manual/en/function.md5.php)
+     *
+     * @param string $key
+     * @return string
+     */
+    protected function hash(string $key): string
+    {
+        return md5($key);
     }
 }

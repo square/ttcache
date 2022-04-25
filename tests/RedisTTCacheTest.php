@@ -22,16 +22,7 @@ class RedisTTCacheTest extends TTCacheTest
     {
         $this->redis = new Redis();
         $this->redis->connect('redis');
-        $this->keySeparator = TTCache::cachePoolKeyDelimiter();
-        return TTCache::newWithCachePool(new RedisCachePool($this->redis));
-    }
-
-    /**
-     * @return Closure
-     */
-    public function getKeyHasher(): Closure
-    {
-        return TTCache::cachePoolKeyHasher();
+        return new TTCache(new RedisCachePool($this->redis));
     }
 
     public function tearDown(): void
