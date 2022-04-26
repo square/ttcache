@@ -2,16 +2,19 @@
 
 namespace Square\TTCache;
 
+use Closure;
+use Psr\SimpleCache\CacheInterface;
 use Square\TTCache\ReturnDirective\BypassCache;
 use Square\TTCache\ReturnDirective\GetTaggedValue;
 use Square\TTCache\Store\ShardedMemcachedStore;
+use Square\TTCache\Store\TaggedStore;
 use Square\TTCache\Tags\HeritableTag;
 use Square\TTCache\TTCache;
 use PHPUnit\Framework\TestCase;
 use Memcached;
 use Square\TTCache\Tags\ShardingTag;
 
-class TTCacheTest extends TestCase
+abstract class TTCacheTest extends TestCase
 {
     protected TTCache $tt;
 
@@ -19,15 +22,13 @@ class TTCacheTest extends TestCase
 
     public function setUp() : void
     {
-        $this->mc = new Memcached;
-        $this->mc->addServers([['memcached', 11211]]);
-        $this->mc->flush();
-
-        $store = new ShardedMemcachedStore($this->mc);
-        $store->setShardingKey('hello');
-
-        $this->tt = new TTCache($store);
+        $this->tt = $this->getTTCache();
     }
+
+    /**
+     * @return TTCache
+     */
+    abstract public function getTTCache(): TTCache;
 
     /**
      * @test
@@ -139,109 +140,6 @@ class TTCacheTest extends TestCase
     /**
      * @test
      */
-    function retrieving_parts_of_a_collection_still_applies_all_tags()
-    {
-        $coll = [
-            new BlogPost('abc', 'Learn PHP the curved way', '...'),
-            new BlogPost('def', 'Learn Python the curved way', '...'),
-            new BlogPost('ghi', 'Learn Javascript the curved way', '...'),
-            new BlogPost('klm', 'Learn Rust the curved way', '...'),
-            new BlogPost('nop', 'Learn Go the curved way', '...'),
-        ];
-
-        $store = new class($this->mc) extends ShardedMemcachedStore {
-            public $requestedKeys = [];
-            public function __construct($mc)
-            {
-                parent::__construct($mc);
-            }
-
-            public function get($key, $default = null)
-            {
-                $this->requestedKeys[] = $key;
-                return parent::get($key);
-            }
-        };
-        $store->setShardingKey('hello');
-
-        $this->tt = new TTCache($store);
-
-        $built = fn() => $this->tt->remember('full-collection', null, [], function () use ($coll) {
-            $posts = [];
-            $keys = [];
-            foreach ($coll as $post) {
-                $keys[] = __CLASS__.':blog-collection:'.$post->id;
-            }
-            $this->tt->load($keys);
-
-            foreach ($coll as $post) {
-                $key = __CLASS__.':blog-collection:'.$post->id;
-                $posts[] = $this->tt->remember($key, null, ['post:'.$post->id], fn () => "<h1>$post->title</h1><hr /><div>$post->content</div>");
-            }
-
-            return $posts;
-        });
-
-
-        $this->assertEquals([
-            "<h1>Learn PHP the curved way</h1><hr /><div>...</div>",
-            "<h1>Learn Python the curved way</h1><hr /><div>...</div>",
-            "<h1>Learn Javascript the curved way</h1><hr /><div>...</div>",
-            "<h1>Learn Rust the curved way</h1><hr /><div>...</div>",
-            "<h1>Learn Go the curved way</h1><hr /><div>...</div>",
-        ], $built());
-        $this->assertEquals([
-            "k:full-collection",
-            "k:Square\TTCache\TTCacheTest:blog-collection:abc",
-            "k:Square\TTCache\TTCacheTest:blog-collection:def",
-            "k:Square\TTCache\TTCacheTest:blog-collection:ghi",
-            "k:Square\TTCache\TTCacheTest:blog-collection:klm",
-            "k:Square\TTCache\TTCacheTest:blog-collection:nop",
-        ], $store->requestedKeys);
-
-        // When we call `built()` again, all the data should be pre-loaded and therefore come without talking to MC
-        $store->requestedKeys = [];
-        $built();
-        $this->assertEquals([
-            "k:full-collection",
-        ], $store->requestedKeys);
-
-        // Clear tag for "abc" and change the title for "abc"
-        $this->tt->clearTags('post:'.$coll[0]->id);
-        $store->requestedKeys = [];
-        $coll[0]->title = 'Learn PHP the straight way';
-        $this->assertEquals([
-            "<h1>Learn PHP the straight way</h1><hr /><div>...</div>",
-            "<h1>Learn Python the curved way</h1><hr /><div>...</div>",
-            "<h1>Learn Javascript the curved way</h1><hr /><div>...</div>",
-            "<h1>Learn Rust the curved way</h1><hr /><div>...</div>",
-            "<h1>Learn Go the curved way</h1><hr /><div>...</div>",
-        ], $built());
-        $this->assertEquals([
-            "k:full-collection",
-            "k:Square\TTCache\TTCacheTest:blog-collection:abc",
-        ], $store->requestedKeys);
-
-        // Newly cached value still contains all the tags. So clearing by another tag will also work.
-        $this->tt->clearTags('post:'.$coll[1]->id);
-        $store->requestedKeys = [];
-        $coll[1]->title = 'Learn Python the straight way';
-        $this->assertEquals([
-            "<h1>Learn PHP the straight way</h1><hr /><div>...</div>",
-            "<h1>Learn Python the straight way</h1><hr /><div>...</div>",
-            "<h1>Learn Javascript the curved way</h1><hr /><div>...</div>",
-            "<h1>Learn Rust the curved way</h1><hr /><div>...</div>",
-            "<h1>Learn Go the curved way</h1><hr /><div>...</div>",
-        ], $built());
-        $this->assertEquals([
-            "k:full-collection",
-            "k:Square\TTCache\TTCacheTest:blog-collection:def",
-        ], $store->requestedKeys);
-    }
-
-    /**
-     * @test
-     */
     function if_sub_ttl_expires_then_sup_expires_too()
     {
         $built = $this->tt->remember('main',null, [], function () {
@@ -298,7 +196,13 @@ class TTCacheTest extends TestCase
 
         $this->assertTrue($built() instanceof TaggedValue);
         $this->assertEquals($built()->value, 'hello');
-        $this->assertEquals(array_keys($built()->tags), ['t:abc', 't:def']);
+        $this->assertEquals(
+            array_keys($built()->tags),
+            [
+                't-' . $this->hash('abc'),
+                't-' . $this->hash('def'),
+            ],
+        );
     }
 
     /**
@@ -328,24 +232,24 @@ class TTCacheTest extends TestCase
         });
 
         $this->assertEquals($built(), 'hello dear world!');
-        $this->assertEquals($counter->get(), 4);
+        $this->assertEquals($counter->get(), 4, 'expected first call to call all 4 levels.');
 
         // Now it's cached
         $counter->reset();
         $this->assertEquals($built(), 'hello dear world!');
-        $this->assertEquals($counter->get(), 0); // no callbacks were called
+        $this->assertEquals($counter->get(), 0, 'expected not clearing any tags to call 0 levels.'); // no callbacks were called
 
         // clear one of the sub tags
         $counter->reset();
         $this->tt->clearTags('sub:1');
         $this->assertEquals($built(), 'hello dear world!');
-        $this->assertEquals($counter->get(), 2); // 2 levels of callbacks were called
+        $this->assertEquals($counter->get(), 2, 'expected clearing tag sub:1 to call only 2 levels.'); // 2 levels of callbacks were called
 
         // clear deepest sub
         $counter->reset();
         $this->tt->clearTags('sub:3');
         $this->assertEquals($built(), 'hello dear world!');
-        $this->assertEquals($counter->get(), 4); // 4 levels of callbacks were called
+        $this->assertEquals($counter->get(), 4, 'expected clearing of deepest tag to call all 4 levels.'); // 4 levels of callbacks were called
     }
 
     /**
@@ -375,30 +279,30 @@ class TTCacheTest extends TestCase
         });
 
         $this->assertEquals($built(), 'hello dear world!');
-        $this->assertEquals($counter->get(), 4);
+        $this->assertEquals($counter->get(), 4, 'expected first call to call all 4 levels.');
 
         // Now it's cached
         $counter->reset();
         $this->assertEquals($built(), 'hello dear world!');
-        $this->assertEquals($counter->get(), 0); // no callbacks were called
+        $this->assertEquals($counter->get(), 0, 'expected not clearing any tags to call 0 levels.'); // no callbacks were called
 
         // clear one of the sub tags
         $counter->reset();
         $this->tt->clearTags('sub:1');
         $this->assertEquals($built(), 'hello dear world!');
-        $this->assertEquals($counter->get(), 2); // 2 levels of callbacks were called
+        $this->assertEquals($counter->get(), 2, 'expected clearing sub:1 to call 2 levels.'); // 2 levels of callbacks were called
 
         // clear the heritable tag
         $counter->reset();
         $this->tt->clearTags('global');
         $this->assertEquals($built(), 'hello dear world!');
-        $this->assertEquals($counter->get(), 4); // 4 levels of callbacks were called
+        $this->assertEquals($counter->get(), 4, 'expected clearing heritable tag "global" to call 4 levels.'); // 4 levels of callbacks were called
 
         // clear the heritable tag
         $counter->reset();
         $this->tt->clearTags('subglobal');
         $this->assertEquals($built(), 'hello dear world!');
-        $this->assertEquals($counter->get(), 4); // 4 levels of callbacks were called
+        $this->assertEquals($counter->get(), 4, 'expected clarring heritable tag "subglobal" to call 4 levels.'); // 4 levels of callbacks were called
     }
 
     /**
@@ -557,20 +461,124 @@ class TTCacheTest extends TestCase
             }
         };
     }
-}
 
-class BlogPost
-{
-    public string $id;
-
-    public string $title;
-
-    public string $content;
-
-    public function __construct(string $id, string $title, string $content)
+    /**
+     * @test
+     */
+    function retrieving_parts_of_a_collection_still_applies_all_tags()
     {
-        $this->id = $id;
-        $this->title = $title;
-        $this->content = $content;
+        $coll = [
+            new BlogPost('abc', 'Learn PHP the curved way', '...'),
+            new BlogPost('def', 'Learn Python the curved way', '...'),
+            new BlogPost('ghi', 'Learn Javascript the curved way', '...'),
+            new BlogPost('klm', 'Learn Rust the curved way', '...'),
+            new BlogPost('nop', 'Learn Go the curved way', '...'),
+        ];
+
+        /*
+         * Very hacky, but we are using reflection here to add a layer around
+         * the inner-most CacheInterface that tracks the keys requested by the TaggedStore
+         * via $store->get(...). e.g.:
+         */
+        $reflClass = new \ReflectionClass(TTCache::class);
+        $reflProperty = $reflClass->getProperty('cache');
+        $reflProperty->setAccessible(true);
+        // This is the TaggedStore instance on TTCache. This would contain the CacheInterface we want to track.
+        $taggedStore = $reflProperty->getValue($this->tt);
+        $reflClass = new \ReflectionClass(TaggedStore::class);
+        $reflProperty = $reflClass->getProperty('cache');
+        $reflProperty->setAccessible(true);
+        /**
+         * This is the inner-most CacheInterface.
+         * @var CacheInterface $origStore
+         */
+        $origStore = $reflProperty->getValue($taggedStore);
+
+        // We will add the layer around it, and set it back to the TaggedStore.
+        $store = new KeyTracker($origStore);
+        $reflProperty->setValue($taggedStore, $store);
+
+        $built = fn() => $this->tt->remember('full-collection', null, [], function () use ($coll) {
+            $posts = [];
+            $keys = [];
+            foreach ($coll as $post) {
+                $keys[] = __CLASS__.':blog-collection:'.$post->id;
+            }
+            $this->tt->load($keys);
+
+            foreach ($coll as $post) {
+                $key = __CLASS__.':blog-collection:'.$post->id;
+                $posts[] = $this->tt->remember($key, null, ['post:'.$post->id], fn () => "<h1>$post->title</h1><hr /><div>$post->content</div>");
+            }
+
+            return $posts;
+        });
+
+
+        $this->assertEquals([
+            "<h1>Learn PHP the curved way</h1><hr /><div>...</div>",
+            "<h1>Learn Python the curved way</h1><hr /><div>...</div>",
+            "<h1>Learn Javascript the curved way</h1><hr /><div>...</div>",
+            "<h1>Learn Rust the curved way</h1><hr /><div>...</div>",
+            "<h1>Learn Go the curved way</h1><hr /><div>...</div>",
+        ], $built());
+        $this->assertEquals([
+            'k-' . $this->hash('full-collection'),
+            'k-' . $this->hash('Square\TTCache\TTCacheTest:blog-collection:abc'),
+            'k-' . $this->hash('Square\TTCache\TTCacheTest:blog-collection:def'),
+            'k-' . $this->hash('Square\TTCache\TTCacheTest:blog-collection:ghi'),
+            'k-' . $this->hash('Square\TTCache\TTCacheTest:blog-collection:klm'),
+            'k-' . $this->hash('Square\TTCache\TTCacheTest:blog-collection:nop'),
+        ], $store->requestedKeys);
+
+        // When we call `built()` again, all the data should be pre-loaded and therefore come without talking to MC
+        $store->requestedKeys = [];
+        $built();
+        $this->assertEquals([
+            'k-' . $this->hash('full-collection'),
+        ], $store->requestedKeys);
+
+        // Clear tag for "abc" and change the title for "abc"
+        $this->tt->clearTags('post:'.$coll[0]->id);
+        $store->requestedKeys = [];
+        $coll[0]->title = 'Learn PHP the straight way';
+        $this->assertEquals([
+            "<h1>Learn PHP the straight way</h1><hr /><div>...</div>",
+            "<h1>Learn Python the curved way</h1><hr /><div>...</div>",
+            "<h1>Learn Javascript the curved way</h1><hr /><div>...</div>",
+            "<h1>Learn Rust the curved way</h1><hr /><div>...</div>",
+            "<h1>Learn Go the curved way</h1><hr /><div>...</div>",
+        ], $built());
+        $this->assertEquals([
+            'k-' . $this->hash('full-collection'),
+            'k-' . $this->hash('Square\TTCache\TTCacheTest:blog-collection:abc'),
+        ], $store->requestedKeys);
+
+        // Newly cached value still contains all the tags. So clearing by another tag will also work.
+        $this->tt->clearTags('post:'.$coll[1]->id);
+        $store->requestedKeys = [];
+        $coll[1]->title = 'Learn Python the straight way';
+        $this->assertEquals([
+            "<h1>Learn PHP the straight way</h1><hr /><div>...</div>",
+            "<h1>Learn Python the straight way</h1><hr /><div>...</div>",
+            "<h1>Learn Javascript the curved way</h1><hr /><div>...</div>",
+            "<h1>Learn Rust the curved way</h1><hr /><div>...</div>",
+            "<h1>Learn Go the curved way</h1><hr /><div>...</div>",
+        ], $built());
+        $this->assertEquals([
+            'k-' . $this->hash('full-collection'),
+            'k-' . $this->hash('Square\TTCache\TTCacheTest:blog-collection:def'),
+        ], $store->requestedKeys);
+    }
+
+    /**
+     * The hashing function being used in tests. Using the default here, which is md5 (https://www.php.net/manual/en/function.md5.php)
+     *
+     * @param string $key
+     * @return string
+     */
+    protected function hash(string $key): string
+    {
+        return md5($key);
     }
 }

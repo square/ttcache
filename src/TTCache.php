@@ -2,6 +2,7 @@
 
 namespace Square\TTCache;
 
+use Cache\Adapter\Common\AbstractCachePool;
 use Closure;
 use Psr\SimpleCache\CacheInterface;
 use Square\TTCache\ReturnDirective\BypassCacheInterface;
@@ -34,17 +35,17 @@ class TTCache
     public function __construct(CacheInterface $cache, Closure $keyHasher = null)
     {
         $this->cache = new TaggedStore($cache);
-        $this->keyHasher = $keyHasher ?? fn ($x) => $x;
+        $this->keyHasher = $keyHasher ?? fn ($x) => md5($x);
     }
 
     protected function hashedKey(string $k) : string
     {
-        return 'k:'.($this->keyHasher)($k);
+        return 'k-' . ($this->keyHasher)($k);
     }
 
     protected function hashedTag(string $t) : string
     {
-        return 't:'.($this->keyHasher)($t);
+        return 't-' . ($this->keyHasher)($t);
     }
 
     /**
@@ -125,7 +126,7 @@ class TTCache
         $htags = array_map([$this, 'hashedTag'], $tags);
         $isRoot = $this->initTree();
 
-        ['taghashes' => $tagHashes] = $this->cache->fetchOrMakeTagHashes($htags, 0);
+        ['taghashes' => $tagHashes] = $this->cache->fetchOrMakeTagHashes($htags, null);
 
         // Advance in the tree nodes
         $parent = $this->advanceTree($tagHashes, $tags);

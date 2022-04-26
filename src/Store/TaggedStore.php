@@ -2,6 +2,7 @@
 
 namespace Square\TTCache\Store;
 
+use Iterator;
 use Psr\SimpleCache\CacheInterface;
 use Square\TTCache\ReturnDirective\GetTaggedValueInterface;
 use Square\TTCache\TaggedValue;
@@ -12,9 +13,11 @@ use Square\TTCache\TaggedValue;
  */
 class TaggedStore
 {
-    protected const TAGS_TTL = 0;
+    protected const TAGS_TTL = null;
 
     protected CacheInterface $cache;
+
+    private const TTL_CACHE_PREFIX = '__TTCache_TTL__';
 
     public function __construct(CacheInterface $cache)
     {
@@ -41,6 +44,9 @@ class TaggedStore
             $currentHashes = [];
             if (!empty($storedtags)) {
                 $currentHashes = $this->cache->getMultiple($storedtags);
+                if ($currentHashes instanceof Iterator) {
+                    $currentHashes = iterator_to_array($currentHashes);
+                }
             }
             if ($this->tagsAreValid($r->tags, $currentHashes)) {
                 return $r;
@@ -86,6 +92,9 @@ class TaggedStore
     public function getMultiple(array $keys)
     {
         $r = $this->cache->getMultiple($keys);
+        if ($r instanceof Iterator) {
+            $r = iterator_to_array($r);
+        }
 
         $allTags = [];
         /** @var TaggedValue $tv */
@@ -98,6 +107,9 @@ class TaggedStore
         }
 
         $allCurrentTagHashes = $this->cache->getMultiple($allTags);
+        if ($allCurrentTagHashes instanceof Iterator) {
+            $allCurrentTagHashes = iterator_to_array($allCurrentTagHashes);
+        }
 
         $validResults = [];
         /** @var string $k */
@@ -121,14 +133,26 @@ class TaggedStore
         $tagHashes = [];
         $ttlTag = '';
         if ($ttl !== null) {
-            $ttlTag = __METHOD__.":ttl:$ttl:".$this->generateHash();
+            $ttlTag = implode(
+                '-',
+                [
+                    self::TTL_CACHE_PREFIX,
+                    'ttl',
+                    $ttl,
+                    $this->generateHash(),
+                ],
+            );
             $tags = [$ttlTag, ... $tags];
         }
 
         if (!empty($tags)) {
             try {
+                $tagHashes = $this->cache->getMultiple($tags);
+                if ($tagHashes instanceof Iterator) {
+                    $tagHashes = iterator_to_array($tagHashes) ;
+                }
                 $tagHashes = array_filter(
-                    (array) $this->cache->getMultiple($tags),
+                    $tagHashes,
                     static fn($v) => $v !== null,
                 );
             } catch (CacheStoreException $e) {
