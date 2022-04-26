@@ -1,3 +1,8 @@
+**1.0.2**
+- use `md5` as default hasher instead of identity (sane prod default)
+- avoid `:` character in keys for Redis compatibility
+- add compatibility for PSR-6 implementations that return an `iterator` where we previously only supported an `array`
+
 **1.0.1**
 
 - fixes issue with cache implementations that always populate keys in `getMulti` even for cases where the value was not found and set the value to `NULL`.
