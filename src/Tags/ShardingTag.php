@@ -26,7 +26,7 @@ class ShardingTag extends HeritableTag implements TagInterface
     public function __construct(string $prefix, string $shardingValue, int $numberOfShards)
     {
         parent::__construct(
-            $prefix.':'.(crc32($prefix.$shardingValue) % $numberOfShards)
+            $prefix.'-'.(crc32($prefix.$shardingValue) % $numberOfShards)
         );
     }
 }
