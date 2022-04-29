@@ -186,19 +186,20 @@ class TTCache
      */
     public function load(array $keys): Result
     {
-        $keys = array_combine($keys, $keys);
         $hkeys = array_map([$this, 'hashedKey'], $keys);
-        $hashToKeys = array_flip($hkeys);
+        $hashedKeysToOrigKeys = array_flip($hkeys);
+
         $loadedKeys = [];
+        $missingKeys = $keys;
         $validValues = $this->cache->getMultiple($hkeys);
         foreach ($validValues as $k => $tv) {
-            $originalHash = $hashToKeys[$k];
-            $loadedKeys[$originalHash] = $k;
-            unset($hashToKeys[$k]);
+            $originalKey = $hashedKeysToOrigKeys[$k];
+            $loadedKeys[$originalKey] = $k;
+            unset($keys[$originalKey]);
             $this->rawTags(array_keys($tv->tags));
         }
         $this->tree->addToCache($validValues);
-        return new Result($loadedKeys, array_flip($hashToKeys));
+        return new Result($loadedKeys, $keys);
     }
 
     /**
