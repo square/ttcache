@@ -186,9 +186,6 @@ class TTCache
         $hkeys = array_map([$this, 'hashedKey'], $keys);
 
         $validValues = $this->cache->getMultiple($hkeys);
-        if ($validValues instanceof Iterator) {
-            $validValues = iterator_to_array($validValues);
-        }
         foreach ($validValues as $tv) {
             $this->rawTags(array_keys($tv->tags));
         }

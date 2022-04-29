@@ -106,9 +106,12 @@ class TaggedStore
             $allTags = array_merge($allTags, array_keys($tv->tags));
         }
 
-        $allCurrentTagHashes = $this->cache->getMultiple($allTags);
-        if ($allCurrentTagHashes instanceof Iterator) {
-            $allCurrentTagHashes = iterator_to_array($allCurrentTagHashes);
+        $allCurrentTagHashes = [];
+        if (!empty($allTags)) {
+            $allCurrentTagHashes = $this->cache->getMultiple($allTags);
+            if ($allCurrentTagHashes instanceof Iterator) {
+                $allCurrentTagHashes = iterator_to_array($allCurrentTagHashes);
+            }
         }
 
         $validResults = [];

@@ -433,10 +433,10 @@ abstract class TTCacheTest extends TestCase
         $this->assertEquals('main1', $built());
         $this->assertEquals('sub1', $built2());
         // clear a shard tag clears only the value that was on that shard
-        $this->tt->clearTags('shard:0');
+        $this->tt->clearTags('shard-0');
         $this->assertEquals('main2', $built());
         $this->assertEquals('sub1', $built2());
-        $this->tt->clearTags('shard:1');
+        $this->tt->clearTags('shard-1');
         $this->assertEquals('main2', $built());
         $this->assertEquals('sub2', $built2());
     }
