@@ -182,9 +182,9 @@ class TTCache
      * scope or any descendant node instead of going to the cache store.
      *
      * @param array $keys
-     * @return array
+     * @return Result
      */
-    public function load(array $keys): array
+    public function load(array $keys): Result
     {
         $keys = array_combine($keys, $keys);
         $hkeys = array_map([$this, 'hashedKey'], $keys);
@@ -192,11 +192,13 @@ class TTCache
         $loadedKeys = [];
         $validValues = $this->cache->getMultiple($hkeys);
         foreach ($validValues as $k => $tv) {
-            $loadedKeys[] = $hashToKeys[$k];
+            $originalHash = $hashToKeys[$k];
+            $loadedKeys[$originalHash] = $k;
+            unset($hashToKeys[$k]);
             $this->rawTags(array_keys($tv->tags));
         }
         $this->tree->addToCache($validValues);
-        return $loadedKeys;
+        return new Result($loadedKeys, array_flip($hashToKeys));
     }
 
     /**
