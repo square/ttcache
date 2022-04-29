@@ -197,7 +197,7 @@ class TTCache
         }
         $this->tree->addToCache($validValues);
         return $loadedKeys;
-    e
+    }
 
     /**
      * Applies a set of given tags without hashing them (useful for re-using tags directly)
