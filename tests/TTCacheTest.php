@@ -498,9 +498,9 @@ abstract class TTCacheTest extends TestCase
         $store = new KeyTracker($origStore);
         $reflProperty->setValue($taggedStore, $store);
 
-        $resultReaderStub = new class() {
-            public ?Result $result = null;
-        };
+        $resultReaderStub = (object) [
+            'result' => null,
+        ];
 
         $built = fn() => $this->tt->remember('full-collection', null, [], function () use ($coll, $resultReaderStub) {
             $posts = [];
