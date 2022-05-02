@@ -190,7 +190,6 @@ class TTCache
         $hashedKeysToOrigKeys = array_flip($hkeys);
 
         $loadedKeys = [];
-        $missingKeys = $keys;
         $validValues = $this->cache->getMultiple($hkeys);
         foreach ($validValues as $k => $tv) {
             $originalKey = $hashedKeysToOrigKeys[$k];
