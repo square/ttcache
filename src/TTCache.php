@@ -193,7 +193,7 @@ class TTCache
         $validValues = $this->cache->getMultiple($hkeys);
         foreach ($validValues as $k => $tv) {
             $originalKey = $hashedKeysToOrigKeys[$k];
-            $loadedKeys[$originalKey] = $k;
+            $loadedKeys[$originalKey] = $keys[$originalKey];
             unset($keys[$originalKey]);
             $this->rawTags(array_keys($tv->tags));
         }
