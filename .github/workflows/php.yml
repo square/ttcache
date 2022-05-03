@@ -55,3 +55,6 @@ jobs:
 
     - name: Run static analysis
       run: ./vendor/bin/phpstan analyse src tests --level 5
+      
+    - name: Run unit tests
+      run: ./vendor/bin/phpunit tests
