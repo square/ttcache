@@ -498,13 +498,17 @@ abstract class TTCacheTest extends TestCase
         $store = new KeyTracker($origStore);
         $reflProperty->setValue($taggedStore, $store);
 
-        $built = fn() => $this->tt->remember('full-collection', null, [], function () use ($coll) {
+        $resultReaderStub = (object) [
+            'result' => null,
+        ];
+
+        $built = fn() => $this->tt->remember('full-collection', null, [], function () use ($coll, $resultReaderStub) {
             $posts = [];
             $keys = [];
             foreach ($coll as $post) {
                 $keys[] = __CLASS__.':blog-collection:'.$post->id;
             }
-            $this->tt->load($keys);
+            $resultReaderStub->result = $this->tt->load($keys);
 
             foreach ($coll as $post) {
                 $key = __CLASS__.':blog-collection:'.$post->id;
@@ -513,7 +517,6 @@ abstract class TTCacheTest extends TestCase
 
             return $posts;
         });
-
 
         $this->assertEquals([
             "<h1>Learn PHP the curved way</h1><hr /><div>...</div>",
@@ -531,15 +534,29 @@ abstract class TTCacheTest extends TestCase
             'k-' . $this->hash('Square\TTCache\TTCacheTest:blog-collection:nop'),
         ], $store->requestedKeys);
 
+        $this->assertInstanceOf(Result::class, $resultReaderStub->result);
+        $this->assertEmpty($resultReaderStub->result->loadedKeys());
+        $this->assertEquals([
+            'Square\TTCache\TTCacheTest:blog-collection:abc',
+            'Square\TTCache\TTCacheTest:blog-collection:def',
+            'Square\TTCache\TTCacheTest:blog-collection:ghi',
+            'Square\TTCache\TTCacheTest:blog-collection:klm',
+            'Square\TTCache\TTCacheTest:blog-collection:nop',
+        ], $resultReaderStub->result->missingKeys());
+
         // When we call `built()` again, all the data should be pre-loaded and therefore come without talking to MC
+        $resultReaderStub->result = null;
         $store->requestedKeys = [];
         $built();
         $this->assertEquals([
             'k-' . $this->hash('full-collection'),
         ], $store->requestedKeys);
+        $this->assertNull($resultReaderStub->result);
+
 
         // Clear tag for "abc" and change the title for "abc"
         $this->tt->clearTags('post:'.$coll[0]->id);
+        $resultReaderStub->result = null;
         $store->requestedKeys = [];
         $coll[0]->title = 'Learn PHP the straight way';
         $this->assertEquals([
@@ -553,10 +570,23 @@ abstract class TTCacheTest extends TestCase
             'k-' . $this->hash('full-collection'),
             'k-' . $this->hash('Square\TTCache\TTCacheTest:blog-collection:abc'),
         ], $store->requestedKeys);
+        $this->assertInstanceOf(Result::class, $resultReaderStub->result);
+        $this->assertEquals([
+            1 => 'Square\TTCache\TTCacheTest:blog-collection:def',
+            2 => 'Square\TTCache\TTCacheTest:blog-collection:ghi',
+            3 => 'Square\TTCache\TTCacheTest:blog-collection:klm',
+            4 => 'Square\TTCache\TTCacheTest:blog-collection:nop',
+            /** @phpstan-ignore-next-line */
+        ], $resultReaderStub->result->loadedKeys());
+        $this->assertEquals([
+            0 => 'Square\TTCache\TTCacheTest:blog-collection:abc',
+            /** @phpstan-ignore-next-line */
+        ], $resultReaderStub->result->missingKeys());
 
         // Newly cached value still contains all the tags. So clearing by another tag will also work.
         $this->tt->clearTags('post:'.$coll[1]->id);
         $store->requestedKeys = [];
+        $resultReaderStub->result = null;
         $coll[1]->title = 'Learn Python the straight way';
         $this->assertEquals([
             "<h1>Learn PHP the straight way</h1><hr /><div>...</div>",
@@ -569,6 +599,18 @@ abstract class TTCacheTest extends TestCase
             'k-' . $this->hash('full-collection'),
             'k-' . $this->hash('Square\TTCache\TTCacheTest:blog-collection:def'),
         ], $store->requestedKeys);
+        $this->assertInstanceOf(Result::class, $resultReaderStub->result);
+        $this->assertEquals([
+            0 => 'Square\TTCache\TTCacheTest:blog-collection:abc',
+            2 => 'Square\TTCache\TTCacheTest:blog-collection:ghi',
+            3 => 'Square\TTCache\TTCacheTest:blog-collection:klm',
+            4 => 'Square\TTCache\TTCacheTest:blog-collection:nop',
+            /** @phpstan-ignore-next-line */
+        ], $resultReaderStub->result->loadedKeys());
+        $this->assertEquals([
+            1 => 'Square\TTCache\TTCacheTest:blog-collection:def',
+            /** @phpstan-ignore-next-line */
+        ], $resultReaderStub->result->missingKeys());
     }
 
     /**

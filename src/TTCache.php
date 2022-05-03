@@ -180,16 +180,25 @@ class TTCache
      * Pre-loads a set of keys in the current node's local cache.
      * The preloaded data can be retrieved directly from memory from this node's
      * scope or any descendant node instead of going to the cache store.
+     *
+     * @param array $keys
+     * @return Result
      */
-    public function load(array $keys)
+    public function load(array $keys): Result
     {
         $hkeys = array_map([$this, 'hashedKey'], $keys);
+        $hashedKeysToOrigKeys = array_flip($hkeys);
 
+        $loadedKeys = [];
         $validValues = $this->cache->getMultiple($hkeys);
-        foreach ($validValues as $tv) {
+        foreach ($validValues as $k => $tv) {
+            $originalKey = $hashedKeysToOrigKeys[$k];
+            $loadedKeys[$originalKey] = $keys[$originalKey];
+            unset($keys[$originalKey]);
             $this->rawTags(array_keys($tv->tags));
         }
         $this->tree->addToCache($validValues);
+        return new Result($loadedKeys, $keys);
     }
 
     /**
