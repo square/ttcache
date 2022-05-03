@@ -11,11 +11,29 @@ permissions:
 
 jobs:
   build:
-
+    container: ubuntu:latest
     runs-on: ubuntu-latest
+    
+    services:
+      redis:
+        image: redis:latest
+      memcached:
+        image: memcached:latest
 
     steps:
     - uses: actions/checkout@v3
+    
+    - name: Setup PHP with PECL extension
+      uses: shivammathur/setup-php@v2
+      with:
+        php-version: '8.1'
+        extensions: memcached, redis
+        
+    #- name: Setup Memcache
+    #  uses: niden/actions-memcached@v7
+      
+    #- name: Setup Redis
+    #  uses: zhulik/redis-action@1.1.0
 
     - name: Validate composer.json and composer.lock
       run: composer validate --strict
@@ -37,3 +55,6 @@ jobs:
 
     - name: Run static analysis
       run: ./vendor/bin/phpstan analyse src tests --level 5
+      
+    - name: Run unit tests
+      run: ./vendor/bin/phpunit tests
