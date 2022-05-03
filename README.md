@@ -1,5 +1,7 @@
 # Tag Tree Cache
 
+[![PHP](https://github.com/square/ttcache/actions/workflows/php.yml/badge.svg)](https://github.com/square/ttcache/actions/workflows/php.yml)
+
 `TTCache` or Tag Tree Cache is a cache implementation that builds a recursive tree of tags and applies them to the values being cached.
 This allows recursive caching where clearing a value cached deep inside the tree also clears any cached value that depended on it.
 
