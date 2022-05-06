@@ -3,9 +3,6 @@
 namespace Square\TTCache;
 
 use Cache\Adapter\Redis\RedisCachePool;
-use Closure;
-use Illuminate\Cache\RedisStore;
-use Psr\SimpleCache\CacheInterface;
 use Redis;
 
 class RedisTTCacheTest extends TTCacheTest

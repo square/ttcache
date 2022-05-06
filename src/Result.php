@@ -2,44 +2,58 @@
 
 namespace Square\TTCache;
 
-/**
- * Provides information about a cache retrieval that was performed.
- */
 class Result
 {
-    /**
-     * @var array<string|int,string>
-     */
-    protected array $loadedKeys;
+    protected bool $hit;
 
     /**
-     * @var array<string|int,string>
+     * @var mixed
      */
-    protected array $missingKeys;
-    
+    protected $value;
+
+    protected array $tags;
+
     /**
-     * @param array $loadedKeys
-     * @param array $missingKeys
+     * @param mixed $value
+     * @param boolean $hit
+     * @param array $tags
      */
-    public function __construct(array $loadedKeys, array $missingKeys)
+    public function __construct($value, bool $hit, $tags = [])
     {
-        $this->loadedKeys = $loadedKeys;
-        $this->missingKeys = $missingKeys;
+        $this->value = $value;
+        $this->hit = $hit;
+        $this->tags = $tags;
+    }
+
+    public function isHit() : bool
+    {
+        return $this->hit;
+    }
+
+    public function isMiss() : bool
+    {
+        return !$this->hit;
+    }
+
+    public function tags() : array
+    {
+        return $this->tags;
     }
 
     /**
-     * @return array
+     * @return mixed
      */
-    public function loadedKeys(): array
+    public function value()
     {
-        return $this->loadedKeys;
+        return $this->value;
     }
 
-    /**
-     * @return array
-     */
-    public function missingKeys(): array
+    public static function fromTaggedValue(TaggedValue $tv, bool $hit)
     {
-        return $this->missingKeys;
+        return new self(
+            $tv->value,
+            $hit,
+            array_keys($tv->tags)
+        );
     }
 }

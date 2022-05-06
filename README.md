@@ -84,7 +84,7 @@ public function show($productId)
         'name' => $p->name,
         'inventory' => $this->inventory($p, $stores),
         'price' => $this->price($p)
-    ]);
+    ])->value();
 }
 ```
 
@@ -114,7 +114,7 @@ public function show($productId)
         'name' => $p->name,
         'inventory' => $this->inventory($p, $stores),
         'price' => $this->price($p)
-    ]);
+    ])->value();
 }
 ```
 
@@ -126,14 +126,14 @@ public function singleStoreInventory($product, $store)
 {
     $this->ttCache->remember(__METHOD__.':'.$product->id.':'.$store->id, tags: ['product:'.$product->id, 'store:'.$store->id], function () {
         // expensive computation
-    });
+    })->value();
 }
 
 public function price($product)
 {
     $this->ttCache->remember(__METHOD__.':'.$product->id, tags: ['product:'.$product->id], function () {
         // expensive computation
-    });
+    })->value();
 }
 ```
 
@@ -160,7 +160,7 @@ class CachingMiddleware
     {
         $url = $request->url();
         $cachekey = sha1($url);
-        return $this->ttCache->remember($cachekey, fn () => $next($request));
+        return $this->ttCache->remember($cachekey, fn () => $next($request))->value();
     }
 }
 ```
@@ -168,6 +168,35 @@ class CachingMiddleware
 This layer of the cache has no idea what tags will end up being used to generate the response. However when this calls our sample code from above,
 it would end up being tagged with `product:1, store:1, store:2` and clearing any of those tags would end up clearing the response that is cached
 directly based on the URL.
+
+## Caching result information
+
+Sometimes it can be useful to know if the value was or wasn't retrieved from cache. This can be used for telemetry to validate how often you get a cache hit / miss.
+Sometimes it's useful to get the tags that were applied to a value before returning it. This can be used when your app is behind a CDN that supports `Surrogate-Keys` and you want to use the tags as the `Surrogate-Keys` so the CDN can cache the response and you can properly invalidate it.
+
+```php
+public function show($productId)
+{
+    $p = Product::find($productId);
+    $stores = Store::all();
+
+    $cacheResult = $this->ttCache->remember('show:cachekey:'.$productId, tags: ['products:'.$productId, 'stores:'.$stores[0]->id, 'stores:'.$stores[1]->id], fn () => [
+        'id' => $p->id,
+        'name' => $p->name,
+        'inventory' => $this->inventory($p, $stores),
+        'price' => $this->price($p)
+    ]);
+
+    if ($cacheResult->isMiss()) {
+        $this->trackCacheMiss();
+    }
+
+    $response = new Response($cacheResult->value());
+    $response->header('Surrogate-Keys', join(',', $cacheResult->tags()));
+
+    return $response;
+}
+```
 
 ## Dealing with collections
 
@@ -181,8 +210,9 @@ $t->remember('full-collection', 0, [], function () use ($collection) {
     $keys = [];
 
     // Create an array all the caching keys for items in the collection
+    // This is actually a map of `entity_id` => `cache_key`
     foreach ($collection as $post) {
-        $keys[] = __CLASS__.':blog-collection:'.$post->id;
+        $keys[$post->id] = __CLASS__.':blog-collection:'.$post->id;
     }
     // Pre-load them into memory
     $this->tt->load($keys);
@@ -191,11 +221,43 @@ $t->remember('full-collection', 0, [], function () use ($collection) {
     // Or will set a new value in cache for those items that couldn't be resolved in memory
     foreach ($collection as $post) {
         $key = __CLASS__.':blog-collection:'.$post->id;
-        $posts[] = $this->tt->remember($key, 0, ['post:'.$post->id], fn () => "<h1>$post->title</h1><hr /><div>$post->content</div>");
+        $posts[] = $this->tt->remember($key, 0, ['post:'.$post->id], fn () => "<h1>$post->title</h1><hr /><div>$post->content</div>")->value();
     }
 
     return $posts;
-});
+})->value();
+```
+
+### Advanced
+
+To further improve performance, you might want to know which keys were not loaded and from there be able to load all the required entities in a single call.
+The `load` method returns a `LoadResult` object which lets you know what was or wasn't successfully found in the cache.
+
+```php
+$postIds = [1, 2, 3, 4, 5, 6];
+$t->remember('full-collection', 0, [], function () use ($postIds) {
+    $posts = [];
+    $keys = [];
+
+    // Create an array all the caching keys for items in the collection
+    // This is actually a map of `entity_id` => `cache_key`
+    foreach ($postIds as $postId) {
+        $keys[$postId] = __CLASS__.':blog-collection:'.$postId;
+    }
+    // Pre-load them into memory
+    $loadResult = $this->tt->load($keys);
+    // Since we passed our keys to `load` as a map of `entity_id` => `cache_key`, we can retrieve the entity ids here.
+    $missing = BlogPosts::whereIn('id', array_keys($loadResult->missingKeys()));
+
+    // Run through the collection as usual, making calls to `->remember` that will either resolve in memory
+    // Or will set a new value in cache for those items that couldn't be resolved in memory
+    foreach ($postIds as $postId) {
+        $key = __CLASS__.':blog-collection:'.$post->id;
+        $posts[] = $this->tt->remember($key, 0, ['post:'.$post->id], fn () => "<h1>{$missing[$postId]->title}</h1><hr /><div>{$missing[$postId]->content}</div>")->value();
+    }
+
+    return $posts;
+})->value();
 ```
 
 ## Bypassing the cache for some results
@@ -264,30 +326,6 @@ $tt->remember('key:level:1', 0, [new HeritableTag('account:123')], function () {
 ```
 
 Now the tag only needs to be applied once and will be automatically added to any child cached value at any level.
-
-## Accessing the tags
-
-There are cases where you might need access to the tags that are stored alongside a cached value. For example if you are using a CDN / reverse proxy to further cache your HTTP responses content, some CDNs support the use of the `Surrogate-Keys` header, which is a way for your server to pass a list of tags that can be used to `PURGE` the CDN's cache.
-
-If you need access to the tags for a similar purpose, you would:
-
-```php
-class CachingMiddleware
-{
-    public function handle($request, $next)
-    {
-        $url = $request->url();
-        $cachekey = sha1($url);
-        $taggedValue = $this->ttCache->remember($cachekey, function () use ($next, $request) {
-            return new GetTaggedValue($next($request));
-        });
-        $response = $taggedValue->value;
-        $response->header('Surrogate-Keys', array_keys($taggedValue->tags));
-
-        return $response;
-    }
-}
-```
 
 ## Clearing the whole cache
 
