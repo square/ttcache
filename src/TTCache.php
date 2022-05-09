@@ -2,7 +2,6 @@
 
 namespace Square\TTCache;
 
-use Cache\Adapter\Common\AbstractCachePool;
 use Closure;
 use Psr\SimpleCache\CacheInterface;
 use Square\TTCache\ReturnDirective\BypassCacheInterface;
@@ -65,12 +64,12 @@ class TTCache
      *                                          the cache. A nested call to remember that uses tags will have all its
      *                                          tags applied to all wrapping calls to `remember`
      *
-     * @return mixed
+     * @return Result
      * @throws \Throwable
      * @phpstan-ignore-next-line
      * @throws \Psr\SimpleCache\InvalidArgumentException
      */
-    public function remember(string $key, ?int $ttl, array $tags, callable $cb)
+    public function remember(string $key, ?int $ttl, array $tags, callable $cb) : Result
     {
         $hkey = $this->hashedkey($key);
         $htags = array_map([$this, 'hashedTag'], $tags);
@@ -81,14 +80,14 @@ class TTCache
             $r = $this->tree->getFromCache($hkey);
             $this->tree->child($r->tags);
             $this->resetTree($isRoot);
-            return $r->value;
+            return Result::fromTaggedValue($r, true);
         }
 
         $r = $this->cache->get($hkey);
         if ($r) {
             $this->tree->child($r->tags);
             $this->resetTree($isRoot);
-            return $r->value;
+            return Result::fromTaggedValue($r, true);
         }
 
         ['readonly' => $roCache, 'taghashes' => $tagHashes] = $this->cache->fetchOrMakeTagHashes($htags, $ttl);
@@ -98,9 +97,10 @@ class TTCache
 
         try {
             $value = $cb();
+            $tagHashes = $this->tree->tagHashes();
             if ($value instanceof BypassCacheInterface) {
-                $roCache = true;
                 $value = $value->value();
+                return new Result($value, false, array_keys($tagHashes));
             }
         } catch (\Throwable $t) {
             $this->resetTree($isRoot);
@@ -108,7 +108,6 @@ class TTCache
         }
 
         // Rewind the tree nodes
-        $tagHashes = $this->tree->tagHashes();
         $this->tree = $parent;
 
         if (!$roCache) {
@@ -118,7 +117,7 @@ class TTCache
         if ($isRoot) {
             $this->tree = null;
         }
-        return $value;
+        return new Result($value, false, array_keys($tagHashes));
     }
 
     public function wrap(array $tags, callable $cb)
@@ -182,9 +181,9 @@ class TTCache
      * scope or any descendant node instead of going to the cache store.
      *
      * @param array $keys
-     * @return Result
+     * @return LoadResult
      */
-    public function load(array $keys): Result
+    public function load(array $keys): LoadResult
     {
         $hkeys = array_map([$this, 'hashedKey'], $keys);
         $hashedKeysToOrigKeys = array_flip($hkeys);
@@ -198,7 +197,7 @@ class TTCache
             $this->rawTags(array_keys($tv->tags));
         }
         $this->tree->addToCache($validValues);
-        return new Result($loadedKeys, $keys);
+        return new LoadResult($loadedKeys, $keys);
     }
 
     /**

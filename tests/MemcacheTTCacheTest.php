@@ -2,9 +2,7 @@
 
 namespace Square\TTCache;
 
-use Closure;
 use Memcached;
-use Psr\SimpleCache\CacheInterface;
 use Square\TTCache\Store\ShardedMemcachedStore;
 
 class MemcacheTTCacheTest extends TTCacheTest

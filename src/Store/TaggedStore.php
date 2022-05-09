@@ -4,7 +4,6 @@ namespace Square\TTCache\Store;
 
 use Iterator;
 use Psr\SimpleCache\CacheInterface;
-use Square\TTCache\ReturnDirective\GetTaggedValueInterface;
 use Square\TTCache\TaggedValue;
 
 /**
@@ -58,9 +57,7 @@ class TaggedStore
 
     /**
      * Stores a value in cache with its current tag hashes
-     * returns the value that was stored in cache which can be:
-     * - the value that was given (most common)
-     * - a TaggedValue wrapping the given value (if using a GetTaggedValueInterface directive)
+     * returns the value that was stored in cache
      *
      * @param string $key
      * @param int|null $ttl
@@ -72,11 +69,6 @@ class TaggedStore
     {
         // store result
         $v = new TaggedValue($value, $taghashes);
-
-        if ($value instanceof GetTaggedValueInterface) {
-            $value = new TaggedValue($value->value(), $taghashes);
-            $v = new TaggedValue($value, $taghashes);
-        }
 
         $this->cache->set($key, $v, $ttl);
 
