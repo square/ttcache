@@ -271,7 +271,6 @@ abstract class TTCacheTest extends TestCase
 
     /**
      * @test
-     * @group debug
      */
     function caching_from_a_cached_value_still_applies_inner_tags()
     {
