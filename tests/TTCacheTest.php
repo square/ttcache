@@ -271,6 +271,46 @@ abstract class TTCacheTest extends TestCase
 
     /**
      * @test
+     * @group debug
+     */
+    function caching_from_a_cached_value_still_applies_inner_tags()
+    {
+        $counter = $this->counter();
+
+        $built = fn () => $this->tt->remember('main', null, ['uppertag'], function () use ($counter) {
+            $counter->increment();
+            $out = "hello";
+            $out .= $this->tt->remember('sub', null, ['sub:1'], function () use ($counter) {
+                $counter->increment();
+                return " dear world!";
+            })->value();
+            return $out;
+        });
+
+        $this->assertEquals($built()->value(), 'hello dear world!');
+        $this->assertEquals($built()->tags(), ['t-'.md5('uppertag'), 't-'.md5('sub:1')]);
+        $this->assertEquals($counter->get(), 2, 'expected first call to call all 4 levels.');
+
+        $this->tt->clearTags(('uppertag'));
+        $counter->reset();
+
+        // Only 1 level of re-computing happened. 'sub' was retrieved from cache
+        // but its tags still got applied to the upper level
+        $this->assertEquals($built()->value(), 'hello dear world!');
+        $this->assertEquals($built()->tags(), ['t-'.md5('uppertag'), 't-'.md5('sub:1')]);
+        $this->assertEquals($counter->get(), 1, 'expected first call to call all 4 levels.');
+
+        $this->tt->clearTags(('sub:1'));
+        $counter->reset();
+
+        // So now when clearing the sub tag, we go 2 levels deep
+        $this->assertEquals($built()->value(), 'hello dear world!');
+        $this->assertEquals($built()->tags(), ['t-'.md5('uppertag'), 't-'.md5('sub:1')]);
+        $this->assertEquals($counter->get(), 2, 'expected first call to call all 4 levels.');
+    }
+
+    /**
+     * @test
      */
     function tags_can_get_inherited_from_parent_node()
     {
