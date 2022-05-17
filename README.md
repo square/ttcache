@@ -7,6 +7,21 @@ This allows recursive caching where clearing a value cached deep inside the tree
 
 This is useful when generating recursive datastructures such as `json` documents, `html` documents or `xml` documents for example.
 
+# Installation
+
+`composer require square/ttcache:^2.0`
+
+# Integration
+
+## Laravel
+
+In Laravel, you need to make sure you create `TTCache` as a singleton if you intend to use the DI container to access it.
+In your service provider:
+
+```php
+$this->app->singleton(TTCache::class);
+```
+
 # Context
 
 Say you're trying to render a `json` object but parts of the result come from expensive calculations. Let's take this structure as an example:
