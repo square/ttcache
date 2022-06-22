@@ -67,7 +67,7 @@ class MemcachedStore implements CacheInterface
 
     public function setMultiple($values, $ttl = null)
     {
-        $result = $this->mc->setMulti($values, $ttl);
+        $result = $this->mc->setMulti($values, $ttl ?? 0);
         $this->checkResultCode();
         return $result;
     }
