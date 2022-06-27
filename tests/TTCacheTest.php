@@ -5,8 +5,6 @@ namespace Square\TTCache;
 use Closure;
 use Psr\SimpleCache\CacheInterface;
 use Square\TTCache\ReturnDirective\BypassCache;
-use Square\TTCache\ReturnDirective\GetTaggedValue;
-use Square\TTCache\Store\ShardedMemcachedStore;
 use Square\TTCache\Store\TaggedStore;
 use Square\TTCache\Tags\HeritableTag;
 use Square\TTCache\TTCache;
@@ -29,6 +27,14 @@ abstract class TTCacheTest extends TestCase
      * @return TTCache
      */
     abstract public function getTTCache(): TTCache;
+
+    /**
+     * Returns a TTCache implementation which will fail connecting to the
+     * cache store
+     *
+     * @return TTCache
+     */
+    abstract public function getBogusTTCache(): TTCache;
 
     /**
      * @test
@@ -667,6 +673,40 @@ abstract class TTCacheTest extends TestCase
             1 => 'Square\TTCache\TTCacheTest:blog-collection:def',
             /** @phpstan-ignore-next-line */
         ], $resultReaderStub->result->missingKeys());
+    }
+
+    /**
+     * @test
+     */
+    public function result_still_gets_computed_when_cache_is_down()
+    {
+        $this->tt = $this->getBogusTTCache();
+        $r = $this->tt->remember('hello', null, [], fn () => 5);
+
+        $this->assertEquals(5, $r->value());
+        $this->assertTrue($r->isMiss());
+    }
+
+    /**
+     * @test
+     */
+    public function collection_result_still_gets_computed_when_cache_is_down()
+    {
+        $this->tt = $this->getBogusTTCache();
+        $this->tt->wrap([], function () {
+            $this->tt->load(['hello1', 'hello2', 'hello3']);
+
+            $r1 = $this->tt->remember('hello1', null, [], fn () => 1);
+            $r2 = $this->tt->remember('hello2', null, [], fn () => 2);
+            $r3 = $this->tt->remember('hello3', null, [], fn () => 3);
+
+            $this->assertEquals(1, $r1->value());
+            $this->assertTrue($r1->isMiss());
+            $this->assertEquals(2, $r2->value());
+            $this->assertTrue($r2->isMiss());
+            $this->assertEquals(3, $r3->value());
+            $this->assertTrue($r3->isMiss());
+        });
     }
 
     /**

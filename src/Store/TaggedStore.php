@@ -3,6 +3,8 @@
 namespace Square\TTCache\Store;
 
 use Iterator;
+use Psr\Cache\CacheException;
+use Psr\SimpleCache\CacheException as SimpleCacheCacheException;
 use Psr\SimpleCache\CacheInterface;
 use Square\TTCache\TaggedValue;
 
@@ -33,8 +35,8 @@ class TaggedStore
     {
         try {
             $r = $this->cache->get($key);
-        } catch (CacheStoreException $e) {
-            $r = null;
+        } catch (CacheException | SimpleCacheCacheException $e) {
+            return false;
         }
 
         if ($r) {
@@ -70,7 +72,10 @@ class TaggedStore
         // store result
         $v = new TaggedValue($value, $taghashes);
 
-        $this->cache->set($key, $v, $ttl);
+        try {
+            $this->cache->set($key, $v, $ttl);
+        } catch (CacheException | SimpleCacheCacheException $e) {
+        }
 
         return $v->value;
     }
@@ -83,9 +88,19 @@ class TaggedStore
      */
     public function getMultiple(array $keys)
     {
-        $r = $this->cache->getMultiple($keys);
+        try {
+            $r = $this->cache->getMultiple($keys);
+        } catch (CacheException | SimpleCacheCacheException $e) {
+            return [];
+        }
+
+
         if ($r instanceof Iterator) {
-            $r = iterator_to_array($r);
+            try {
+                $r = iterator_to_array($r);
+            } catch (CacheException | SimpleCacheCacheException $e) {
+                return [];
+            }
         }
 
         $allTags = [];
