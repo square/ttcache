@@ -1,3 +1,6 @@
+**2.0.1**
+- fixes a bug with Memcached TTLs
+
 **2.0.0**
 - Introduction of wrapped returns. Calls to `->remember` now return a `Result` class which wraps the value and some additional information such as the tags applied to that value and whether it was computed or retrieved from the cache.
 - **deprecation**: The return directives `GetTaggedValue` and `GetTaggedValueInterface` have been removed. They are no longer necessary with the introduction of wrapped results and the `Result` class.
