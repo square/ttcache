@@ -13,6 +13,8 @@ class Result
 
     protected array $tags;
 
+    protected $error = null;
+
     /**
      * @param mixed $value
      * @param boolean $hit
@@ -46,6 +48,22 @@ class Result
     public function value()
     {
         return $this->value;
+    }
+
+    public function hasError() : bool
+    {
+        return $this->error !== null;
+    }
+
+    public function error()
+    {
+        return $this->error;
+    }
+
+    public function withError($error)
+    {
+        $this->error = $error;
+        return $this;
     }
 
     public static function fromTaggedValue(TaggedValue $tv, bool $hit)
