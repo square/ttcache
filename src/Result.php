@@ -2,6 +2,8 @@
 
 namespace Square\TTCache;
 
+use Throwable;
+
 class Result
 {
     protected bool $hit;
@@ -13,7 +15,7 @@ class Result
 
     protected array $tags;
 
-    protected $error = null;
+    protected ?Throwable $error = null;
 
     /**
      * @param mixed $value
@@ -55,12 +57,12 @@ class Result
         return $this->error !== null;
     }
 
-    public function error()
+    public function error() : ?Throwable
     {
         return $this->error;
     }
 
-    public function withError($error)
+    public function withError(?Throwable $error)
     {
         $this->error = $error;
         return $this;

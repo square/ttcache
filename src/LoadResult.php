@@ -2,6 +2,8 @@
 
 namespace Square\TTCache;
 
+use Throwable;
+
 /**
  * Provides information about a cache load that was performed.
  */
@@ -17,7 +19,7 @@ class LoadResult
      */
     protected array $missingKeys;
 
-    protected $error;
+    protected ?Throwable $error = null;
 
     /**
      * @param array $loadedKeys
@@ -51,7 +53,7 @@ class LoadResult
         return $this->error !== null;
     }
 
-    public function error()
+    public function error() : ?Throwable
     {
         return $this->error;
     }

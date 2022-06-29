@@ -2,13 +2,15 @@
 
 namespace Square\TTCache\Store;
 
+use Throwable;
+
 class StoreResult
 {
-    protected $error = null;
+    protected ?Throwable $error = null;
 
     protected $value;
 
-    public function __construct($value, $error = null)
+    public function __construct($value, ?Throwable $error = null)
     {
         $this->error = $error;
         $this->value = $value;
@@ -19,12 +21,12 @@ class StoreResult
         return $this->value;
     }
 
-    public function error()
+    public function error() : ?Throwable
     {
         return $this->error;
     }
 
-    public function hasError()
+    public function hasError() : bool
     {
         return $this->error() !== null;
     }
