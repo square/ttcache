@@ -25,7 +25,7 @@ class LoadResult
      * @param array $loadedKeys
      * @param array $missingKeys
      */
-    public function __construct(array $loadedKeys, array $missingKeys, $error = null)
+    public function __construct(array $loadedKeys, array $missingKeys, ?Throwable $error = null)
     {
         $this->loadedKeys = $loadedKeys;
         $this->missingKeys = $missingKeys;
