@@ -2,6 +2,8 @@
 
 namespace Square\TTCache;
 
+use Throwable;
+
 class Result
 {
     protected bool $hit;
@@ -12,6 +14,8 @@ class Result
     protected $value;
 
     protected array $tags;
+
+    protected ?Throwable $error = null;
 
     /**
      * @param mixed $value
@@ -46,6 +50,22 @@ class Result
     public function value()
     {
         return $this->value;
+    }
+
+    public function hasError() : bool
+    {
+        return $this->error !== null;
+    }
+
+    public function error() : ?Throwable
+    {
+        return $this->error;
+    }
+
+    public function withError(?Throwable $error)
+    {
+        $this->error = $error;
+        return $this;
     }
 
     public static function fromTaggedValue(TaggedValue $tv, bool $hit)

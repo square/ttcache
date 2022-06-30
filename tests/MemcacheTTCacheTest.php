@@ -25,6 +25,14 @@ class MemcacheTTCacheTest extends TTCacheTest
         return new TTCache($store);
     }
 
+    public function getBogusTTCache(): TTCache
+    {
+        $this->mc = new Memcached;
+        $store = new ShardedMemcachedStore($this->mc);
+        $store->setShardingKey('hello');
+        return new TTCache($store);
+    }
+
     public function tearDown(): void
     {
         $this->mc->flush();

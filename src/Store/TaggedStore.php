@@ -3,6 +3,8 @@
 namespace Square\TTCache\Store;
 
 use Iterator;
+use Psr\Cache\CacheException;
+use Psr\SimpleCache\CacheException as SimpleCacheCacheException;
 use Psr\SimpleCache\CacheInterface;
 use Square\TTCache\TaggedValue;
 
@@ -27,14 +29,14 @@ class TaggedStore
      * Retrieve a single value from cache and verify its tags
      *
      * @param string $key
-     * @return TaggedValue|bool
+     * @return StoreResult
      */
-    public function get(string $key)
+    public function get(string $key) : StoreResult
     {
         try {
             $r = $this->cache->get($key);
-        } catch (CacheStoreException $e) {
-            $r = null;
+        } catch (CacheException | SimpleCacheCacheException $e) {
+            return new StoreResult(null, $e);
         }
 
         if ($r) {
@@ -48,11 +50,11 @@ class TaggedStore
                 }
             }
             if ($this->tagsAreValid($r->tags, $currentHashes)) {
-                return $r;
+                return new StoreResult($r);
             }
         }
 
-        return false;
+        return new StoreResult(null);
     }
 
     /**
@@ -63,29 +65,43 @@ class TaggedStore
      * @param int|null $ttl
      * @param array $taghashes
      * @param TaggedValue|mixed $value
-     * @return mixed
+     * @return StoreResult
      */
-    public function store(string $key, ?int $ttl, array $taghashes, $value)
+    public function store(string $key, ?int $ttl, array $taghashes, $value) : StoreResult
     {
         // store result
         $v = new TaggedValue($value, $taghashes);
 
-        $this->cache->set($key, $v, $ttl);
+        try {
+            $this->cache->set($key, $v, $ttl);
+        } catch (CacheException | SimpleCacheCacheException $e) {
+            return new StoreResult($v->value, $e);
+        }
 
-        return $v->value;
+        return new StoreResult($v->value);
     }
 
     /**
      * Retrieve multiple values from the cache and return the ones that have valid tags
      *
      * @param array $keys
-     * @return array
+     * @return StoreResult
      */
-    public function getMultiple(array $keys)
+    public function getMultiple(array $keys) : StoreResult
     {
-        $r = $this->cache->getMultiple($keys);
+        try {
+            $r = $this->cache->getMultiple($keys);
+        } catch (CacheException | SimpleCacheCacheException $e) {
+            return new StoreResult([], $e);
+        }
+
+
         if ($r instanceof Iterator) {
-            $r = iterator_to_array($r);
+            try {
+                $r = iterator_to_array($r);
+            } catch (CacheException | SimpleCacheCacheException $e) {
+                return new StoreResult([], $e);
+            }
         }
 
         $allTags = [];
@@ -115,7 +131,7 @@ class TaggedStore
             }
         }
 
-        return $validResults;
+        return new StoreResult($validResults);
     }
 
     /**

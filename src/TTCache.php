@@ -84,14 +84,16 @@ class TTCache
         }
 
         $r = $this->cache->get($hkey);
-        if ($r) {
-            $this->tree->child($r->tags);
+        if ($r->value()) {
+            $this->tree->child($r->value()->tags);
             $this->resetTree($isRoot);
-            return Result::fromTaggedValue($r, true);
+            return Result::fromTaggedValue($r->value(), true)->withError($r->error());
         }
 
         ['readonly' => $roCache, 'taghashes' => $tagHashes] = $this->cache->fetchOrMakeTagHashes($htags, $ttl);
-
+        if ($r->hasError()) {
+            $roCache = true;
+        }
         // Advance in the tree nodes
         $parent = $this->advanceTree($tagHashes, $tags);
 
@@ -110,14 +112,17 @@ class TTCache
         // Rewind the tree nodes
         $this->tree = $parent;
 
+        $error = $r->error();
         if (!$roCache) {
-            $value = $this->cache->store($hkey, $ttl, $tagHashes, $value);
+            $result = $this->cache->store($hkey, $ttl, $tagHashes, $value);
+            $error = $result->error();
+            $value = $result->value();
         }
 
         if ($isRoot) {
             $this->tree = null;
         }
-        return new Result($value, false, array_keys($tagHashes));
+        return (new Result($value, false, array_keys($tagHashes)))->withError($error);
     }
 
     public function wrap(array $tags, callable $cb)
@@ -189,15 +194,15 @@ class TTCache
         $hashedKeysToOrigKeys = array_flip($hkeys);
 
         $loadedKeys = [];
-        $validValues = $this->cache->getMultiple($hkeys);
-        foreach ($validValues as $k => $tv) {
+        $validValuesResult = $this->cache->getMultiple($hkeys);
+        foreach ($validValuesResult->value() as $k => $tv) {
             $originalKey = $hashedKeysToOrigKeys[$k];
             $loadedKeys[$originalKey] = $keys[$originalKey];
             unset($keys[$originalKey]);
             $this->rawTags(array_keys($tv->tags));
         }
-        $this->tree->addToCache($validValues);
-        return new LoadResult($loadedKeys, $keys);
+        $this->tree->addToCache($validValuesResult->value());
+        return new LoadResult($loadedKeys, $keys, $validValuesResult->error());
     }
 
     /**

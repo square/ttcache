@@ -1,3 +1,6 @@
+**2.0.2**
+- fixes a bug where a cache repository exception would prevent from re-computing the data
+
 **2.0.1**
 - fixes a bug with Memcached TTLs
 
