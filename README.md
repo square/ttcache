@@ -213,6 +213,23 @@ public function show($productId)
 }
 ```
 
+## Cache Errors
+
+When a cache throws an Exception, `TTCache` will swallow it and move on to computing the result from code instead.
+Howver, the `Result` will carry over the exception information and the fact that there was an error so you can properly monitor,
+track or log those instances.
+
+```php
+public function show($productId)
+{
+    $cacheResult = $this->ttCache->remember('cachekey', tags: [], fn () => 'computed value');
+
+    if ($cacheResult->hasError()) {
+        \Log::error('caching error', ['error' => $cacheResult->error()]);
+    }
+}
+```
+
 ## Dealing with collections
 
 Sometimes when you work on a collection of items and cache the results of applying a function to those, you'll have only a few of those items that are out of cache.
