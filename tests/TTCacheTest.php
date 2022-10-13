@@ -727,8 +727,7 @@ abstract class TTCacheTest extends TestCase
     {
         $v = $this->tt->remember('testkey', null, [], fn () => 'hello 1');
         $this->assertEquals('hello 1', $v->value());
-        // If we use the same key but a different callback that returns something different, we should still get
-        // the previously cached value.
+        // If we add "foobar" as a new tag value, it should re-use what was cached because the cache key didn't change.
         $v = $this->tt->remember('testkey', null, ['foobar'], fn () => 'hello 2');
         $this->assertTrue($v->isHit());
         $this->assertEquals('hello 1', $v->value());
@@ -742,12 +741,12 @@ abstract class TTCacheTest extends TestCase
     {
         $v = $this->tt->remember('testkey', null, ['baz'], fn () => 'hello 1');
         $this->assertEquals('hello 1', $v->value());
-        // If we use the same key but a different callback that returns something different, we should still get
-        // the previously cached value.
+        // If we add "foobar" as a new tag value, it should re-use what was cached because the cache key didn't change.
         $v = $this->tt->remember('testkey', null, ['baz', 'foobar'], fn () => 'hello 2');
         $this->assertTrue($v->isHit());
         $this->assertEquals('hello 1', $v->value());
 
+        // We should now be able to invalidate "foobar" and actually clear "testkey"
         $this->tt->clearTags('foobar');
         $v = $this->tt->remember('testkey', null, ['baz', 'foobar'], fn () => 'hello 2');
         $this->assertTrue($v->isMiss());
