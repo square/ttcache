@@ -85,6 +85,16 @@ class TTCache
 
         $r = $this->cache->get($hkey);
         if ($r->value()) {
+            $newTags = array_diff($htags, array_keys($r->value()->tags));
+            if (!empty($newTags)) {
+                ['readonly' => $roCache, 'taghashes' => $newTagHashes] = $this->cache->fetchOrMakeTagHashes($newTags, $ttl);
+                $r->value()->tags = array_merge($r->value()->tags, $newTagHashes);
+                if (!$roCache) {
+                    $this->cache->store($hkey, $ttl, $r->value()->tags, $r->value()->value);
+                    // Let's skip error handling here, if we cannot save it for some reason it is fine.
+                    // We can try again next time.
+                }
+            }
             $this->tree->child($r->value()->tags);
             $this->resetTree($isRoot);
             return Result::fromTaggedValue($r->value(), true)->withError($r->error());

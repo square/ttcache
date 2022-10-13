@@ -719,4 +719,38 @@ abstract class TTCacheTest extends TestCase
     {
         return md5($key);
     }
+
+    /**
+     * @test
+     */
+    function adding_tags_doesnt_invalidate()
+    {
+        $v = $this->tt->remember('testkey', null, [], fn () => 'hello 1');
+        $this->assertEquals('hello 1', $v->value());
+        // If we use the same key but a different callback that returns something different, we should still get
+        // the previously cached value.
+        $v = $this->tt->remember('testkey', null, ['foobar'], fn () => 'hello 2');
+        $this->assertTrue($v->isHit());
+        $this->assertEquals('hello 1', $v->value());
+    }
+
+    /**
+     * @test
+     * @group debug
+     */
+    function invalidating_a_tag_added_invalidates()
+    {
+        $v = $this->tt->remember('testkey', null, ['baz'], fn () => 'hello 1');
+        $this->assertEquals('hello 1', $v->value());
+        // If we use the same key but a different callback that returns something different, we should still get
+        // the previously cached value.
+        $v = $this->tt->remember('testkey', null, ['baz', 'foobar'], fn () => 'hello 2');
+        $this->assertTrue($v->isHit());
+        $this->assertEquals('hello 1', $v->value());
+
+        $this->tt->clearTags('foobar');
+        $v = $this->tt->remember('testkey', null, ['baz', 'foobar'], fn () => 'hello 2');
+        $this->assertTrue($v->isMiss());
+        $this->assertEquals('hello 2', $v->value());
+    }
 }
