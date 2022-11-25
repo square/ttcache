@@ -42,11 +42,11 @@ abstract class TTCacheTest extends TestCase
     function cache()
     {
         $v = $this->tt->remember('testkey', null, [], fn () => 'hello 1')->value();
-        $this->assertEquals('hello 1', $v);
+        $this->assertSame('hello 1', $v);
         // If we use the same key but a different callback that returns something different, we should still get
         // the previously cached value.
         $v = $this->tt->remember('testkey', null, [], fn () => 'hello 2')->value();
-        $this->assertEquals('hello 1', $v);
+        $this->assertSame('hello 1', $v);
     }
 
     /**
@@ -55,14 +55,14 @@ abstract class TTCacheTest extends TestCase
     function clear_by_tags()
     {
         $v = $this->tt->remember('testkey', null, ['tag', 'other:tag'], fn () => 'hello 1')->value();
-        $this->assertEquals('hello 1', $v);
+        $this->assertSame('hello 1', $v);
         // now it's cached
         $v = $this->tt->remember('testkey', null, [], fn () => 'hello 2')->value();
-        $this->assertEquals('hello 1', $v);
+        $this->assertSame('hello 1', $v);
         // clear `tag`
         $this->tt->clearTags('tag');
         $v = $this->tt->remember('testkey', null, [], fn () => 'hello 2')->value();
-        $this->assertEquals('hello 2', $v);
+        $this->assertSame('hello 2', $v);
     }
 
     /**
@@ -71,16 +71,16 @@ abstract class TTCacheTest extends TestCase
     function avoids_root_tags_contamination()
     {
         $v = $this->tt->remember('testkey', null, ['tag', 'other:tag'], fn () => 'hello 1')->value();
-        $this->assertEquals('hello 1', $v);
+        $this->assertSame('hello 1', $v);
         $v = $this->tt->remember('testkey2', null, [], fn () => 'hello 2')->value();
-        $this->assertEquals('hello 2', $v);
+        $this->assertSame('hello 2', $v);
         // now it's cached
         $v = $this->tt->remember('testkey2', null, [], fn () => 'hello 3')->value();
-        $this->assertEquals('hello 2', $v);
+        $this->assertSame('hello 2', $v);
         // clear `tag`
         $this->tt->clearTags('tag');
         $v = $this->tt->remember('testkey2', null, [], fn () => 'hello 3')->value();
-        $this->assertEquals('hello 2', $v);
+        $this->assertSame('hello 2', $v);
     }
 
     /**
@@ -100,20 +100,20 @@ abstract class TTCacheTest extends TestCase
             return $out;
         })->value();
 
-        $this->assertEquals($built, 'hello dear world!');
+        $this->assertSame($built, 'hello dear world!');
 
         // Now it's cached
         $built = $this->tt->remember('main', null, [], fn () => 'hello wholesome world!')->value();
-        $this->assertEquals($built, 'hello dear world!');
+        $this->assertSame($built, 'hello dear world!');
 
         // clear one of the sub tags
         $this->tt->clearTags('sub:1');
         // sub2 is still in cache
         $sub2 = $this->tt->remember('sub2', null, [], fn () => 'oh no')->value();
-        $this->assertEquals('world!', $sub2);
+        $this->assertSame('world!', $sub2);
 
         $built = $this->tt->remember('main', null, [], fn () => 'hello wholesome world!')->value();
-        $this->assertEquals($built, 'hello wholesome world!');
+        $this->assertSame($built, 'hello wholesome world!');
     }
 
     /**
@@ -138,9 +138,9 @@ abstract class TTCacheTest extends TestCase
         } catch (\Exception $e) {
             // nothing
         }
-        $this->assertEquals(' dear ', $this->tt->remember('sub', null, [], fn () => 'failure')->value());
-        $this->assertEquals('failure', $this->tt->remember('main', null, [], fn () => 'failure')->value());
-        $this->assertEquals('failure', $this->tt->remember('sub2', null, [], fn () => 'failure')->value());
+        $this->assertSame(' dear ', $this->tt->remember('sub', null, [], fn () => 'failure')->value());
+        $this->assertSame('failure', $this->tt->remember('main', null, [], fn () => 'failure')->value());
+        $this->assertSame('failure', $this->tt->remember('sub2', null, [], fn () => 'failure')->value());
     }
 
     /**
@@ -160,17 +160,17 @@ abstract class TTCacheTest extends TestCase
             return $out;
         })->value();
 
-        $this->assertEquals($built, 'hello dear world!');
+        $this->assertSame($built, 'hello dear world!');
 
         // Now it's cached
         $built = $this->tt->remember('main', null, [], fn () => 'hello wholesome world!')->value();
-        $this->assertEquals($built, 'hello dear world!');
+        $this->assertSame($built, 'hello dear world!');
 
         sleep(1);
 
         // Now it's been evicted due to ttl
         $built = $this->tt->remember('main', null, [], fn () => 'hello wholesome world!')->value();
-        $this->assertEquals($built, 'hello wholesome world!');
+        $this->assertSame($built, 'hello wholesome world!');
     }
 
     /**
@@ -184,11 +184,11 @@ abstract class TTCacheTest extends TestCase
             return new BypassCache('hello');
         })->value();
 
-        $this->assertEquals($built(), 'hello');
-        $this->assertEquals(1, $counter->get());
+        $this->assertSame($built(), 'hello');
+        $this->assertSame(1, $counter->get());
         // The value is not getting cached, subsequent calls still increase the counter
-        $this->assertEquals($built(), 'hello');
-        $this->assertEquals(2, $counter->get());
+        $this->assertSame($built(), 'hello');
+        $this->assertSame(2, $counter->get());
     }
 
     /**
@@ -201,8 +201,8 @@ abstract class TTCacheTest extends TestCase
         });
 
         $this->assertTrue($built() instanceof Result);
-        $this->assertEquals($built()->value(), 'hello');
-        $this->assertEquals(
+        $this->assertSame($built()->value(), 'hello');
+        $this->assertSame(
             $built()->tags(),
             [
                 't-' . $this->hash('abc'),
@@ -254,25 +254,25 @@ abstract class TTCacheTest extends TestCase
             return $out;
         })->value();
 
-        $this->assertEquals($built(), 'hello dear world!');
-        $this->assertEquals($counter->get(), 4, 'expected first call to call all 4 levels.');
+        $this->assertSame($built(), 'hello dear world!');
+        $this->assertSame($counter->get(), 4, 'expected first call to call all 4 levels.');
 
         // Now it's cached
         $counter->reset();
-        $this->assertEquals($built(), 'hello dear world!');
-        $this->assertEquals($counter->get(), 0, 'expected not clearing any tags to call 0 levels.'); // no callbacks were called
+        $this->assertSame($built(), 'hello dear world!');
+        $this->assertSame($counter->get(), 0, 'expected not clearing any tags to call 0 levels.'); // no callbacks were called
 
         // clear one of the sub tags
         $counter->reset();
         $this->tt->clearTags('sub:1');
-        $this->assertEquals($built(), 'hello dear world!');
-        $this->assertEquals($counter->get(), 2, 'expected clearing tag sub:1 to call only 2 levels.'); // 2 levels of callbacks were called
+        $this->assertSame($built(), 'hello dear world!');
+        $this->assertSame($counter->get(), 2, 'expected clearing tag sub:1 to call only 2 levels.'); // 2 levels of callbacks were called
 
         // clear deepest sub
         $counter->reset();
         $this->tt->clearTags('sub:3');
-        $this->assertEquals($built(), 'hello dear world!');
-        $this->assertEquals($counter->get(), 4, 'expected clearing of deepest tag to call all 4 levels.'); // 4 levels of callbacks were called
+        $this->assertSame($built(), 'hello dear world!');
+        $this->assertSame($counter->get(), 4, 'expected clearing of deepest tag to call all 4 levels.'); // 4 levels of callbacks were called
     }
 
     /**
@@ -292,26 +292,26 @@ abstract class TTCacheTest extends TestCase
             return $out;
         });
 
-        $this->assertEquals($built()->value(), 'hello dear world!');
-        $this->assertEquals($built()->tags(), ['t-'.md5('uppertag'), 't-'.md5('sub:1')]);
-        $this->assertEquals($counter->get(), 2, 'expected first call to call all 4 levels.');
+        $this->assertSame($built()->value(), 'hello dear world!');
+        $this->assertSame($built()->tags(), ['t-'.md5('uppertag'), 't-'.md5('sub:1')]);
+        $this->assertSame($counter->get(), 2, 'expected first call to call all 4 levels.');
 
         $this->tt->clearTags(('uppertag'));
         $counter->reset();
 
         // Only 1 level of re-computing happened. 'sub' was retrieved from cache
         // but its tags still got applied to the upper level
-        $this->assertEquals($built()->value(), 'hello dear world!');
-        $this->assertEquals($built()->tags(), ['t-'.md5('uppertag'), 't-'.md5('sub:1')]);
-        $this->assertEquals($counter->get(), 1, 'expected first call to call all 4 levels.');
+        $this->assertSame($built()->value(), 'hello dear world!');
+        $this->assertSame($built()->tags(), ['t-'.md5('uppertag'), 't-'.md5('sub:1')]);
+        $this->assertSame($counter->get(), 1, 'expected first call to call all 4 levels.');
 
         $this->tt->clearTags(('sub:1'));
         $counter->reset();
 
         // So now when clearing the sub tag, we go 2 levels deep
-        $this->assertEquals($built()->value(), 'hello dear world!');
-        $this->assertEquals($built()->tags(), ['t-'.md5('uppertag'), 't-'.md5('sub:1')]);
-        $this->assertEquals($counter->get(), 2, 'expected first call to call all 4 levels.');
+        $this->assertSame($built()->value(), 'hello dear world!');
+        $this->assertSame($built()->tags(), ['t-'.md5('uppertag'), 't-'.md5('sub:1')]);
+        $this->assertSame($counter->get(), 2, 'expected first call to call all 4 levels.');
     }
 
     /**
@@ -340,31 +340,31 @@ abstract class TTCacheTest extends TestCase
             return $out;
         })->value();
 
-        $this->assertEquals($built(), 'hello dear world!');
-        $this->assertEquals($counter->get(), 4, 'expected first call to call all 4 levels.');
+        $this->assertSame($built(), 'hello dear world!');
+        $this->assertSame($counter->get(), 4, 'expected first call to call all 4 levels.');
 
         // Now it's cached
         $counter->reset();
-        $this->assertEquals($built(), 'hello dear world!');
-        $this->assertEquals($counter->get(), 0, 'expected not clearing any tags to call 0 levels.'); // no callbacks were called
+        $this->assertSame($built(), 'hello dear world!');
+        $this->assertSame($counter->get(), 0, 'expected not clearing any tags to call 0 levels.'); // no callbacks were called
 
         // clear one of the sub tags
         $counter->reset();
         $this->tt->clearTags('sub:1');
-        $this->assertEquals($built(), 'hello dear world!');
-        $this->assertEquals($counter->get(), 2, 'expected clearing sub:1 to call 2 levels.'); // 2 levels of callbacks were called
+        $this->assertSame($built(), 'hello dear world!');
+        $this->assertSame($counter->get(), 2, 'expected clearing sub:1 to call 2 levels.'); // 2 levels of callbacks were called
 
         // clear the heritable tag
         $counter->reset();
         $this->tt->clearTags('global');
-        $this->assertEquals($built(), 'hello dear world!');
-        $this->assertEquals($counter->get(), 4, 'expected clearing heritable tag "global" to call 4 levels.'); // 4 levels of callbacks were called
+        $this->assertSame($built(), 'hello dear world!');
+        $this->assertSame($counter->get(), 4, 'expected clearing heritable tag "global" to call 4 levels.'); // 4 levels of callbacks were called
 
         // clear the heritable tag
         $counter->reset();
         $this->tt->clearTags('subglobal');
-        $this->assertEquals($built(), 'hello dear world!');
-        $this->assertEquals($counter->get(), 4, 'expected clarring heritable tag "subglobal" to call 4 levels.'); // 4 levels of callbacks were called
+        $this->assertSame($built(), 'hello dear world!');
+        $this->assertSame($counter->get(), 4, 'expected clarring heritable tag "subglobal" to call 4 levels.'); // 4 levels of callbacks were called
     }
 
     /**
@@ -393,32 +393,32 @@ abstract class TTCacheTest extends TestCase
             return $out;
         });
 
-        $this->assertEquals($built(), 'hello dear world!');
-        $this->assertEquals($counter->get(), 4);
+        $this->assertSame($built(), 'hello dear world!');
+        $this->assertSame($counter->get(), 4);
 
         // Now it's cached but the first call to `wrap` still doesn't cache anything
         $counter->reset();
-        $this->assertEquals($built(), 'hello dear world!');
-        $this->assertEquals($counter->get(), 1); // no callbacks were called
+        $this->assertSame($built(), 'hello dear world!');
+        $this->assertSame($counter->get(), 1); // no callbacks were called
 
         // clear the top level heritable tag should clear everything even though it was added on `wrap` which
         // by itself does not cache anything
         $counter->reset();
         $this->tt->clearTags('global');
-        $this->assertEquals($built(), 'hello dear world!');
-        $this->assertEquals($counter->get(), 4); // 2 levels of callbacks were called
+        $this->assertSame($built(), 'hello dear world!');
+        $this->assertSame($counter->get(), 4); // 2 levels of callbacks were called
 
         // Same happens with the other heritable tag
         $counter->reset();
         $this->tt->clearTags('global');
-        $this->assertEquals($built(), 'hello dear world!');
-        $this->assertEquals($counter->get(), 4); // 2 levels of callbacks were called
+        $this->assertSame($built(), 'hello dear world!');
+        $this->assertSame($counter->get(), 4); // 2 levels of callbacks were called
 
         // Clearing `sub:2` added via a nested call to `wrap` also works
         $counter->reset();
         $this->tt->clearTags('sub:2');
-        $this->assertEquals($built(), 'hello dear world!');
-        $this->assertEquals($counter->get(), 3); // 2 levels of callbacks were called
+        $this->assertSame($built(), 'hello dear world!');
+        $this->assertSame($counter->get(), 3); // 2 levels of callbacks were called
     }
 
     /**
@@ -447,36 +447,36 @@ abstract class TTCacheTest extends TestCase
             return $out;
         })->value();
 
-        $this->assertEquals($built(), 'hello dear world!');
-        $this->assertEquals($counter->get(), 4);
+        $this->assertSame($built(), 'hello dear world!');
+        $this->assertSame($counter->get(), 4);
 
         // Now it's cached
         $counter->reset();
-        $this->assertEquals($built(), 'hello dear world!');
-        $this->assertEquals($counter->get(), 0); // no callbacks were called
+        $this->assertSame($built(), 'hello dear world!');
+        $this->assertSame($counter->get(), 0); // no callbacks were called
 
         // clear one of the additional sub tags
         $counter->reset();
         $this->tt->clearTags('subs:all');
-        $this->assertEquals($built(), 'hello dear world!');
-        $this->assertEquals($counter->get(), 2); // 2 levels of callbacks were called
+        $this->assertSame($built(), 'hello dear world!');
+        $this->assertSame($counter->get(), 2); // 2 levels of callbacks were called
 
         // clear deepest sub
         $counter->reset();
         $this->tt->clearTags('subs:deep');
-        $this->assertEquals($built(), 'hello dear world!');
-        $this->assertEquals($counter->get(), 4); // 4 levels of callbacks were called
+        $this->assertSame($built(), 'hello dear world!');
+        $this->assertSame($counter->get(), 4); // 4 levels of callbacks were called
 
         // clear deepest sub
         $counter->reset();
-        $this->assertEquals($built(), 'hello dear world!');
-        $this->assertEquals($counter->get(), 0); // cached again
+        $this->assertSame($built(), 'hello dear world!');
+        $this->assertSame($counter->get(), 0); // cached again
 
         // clear deepest sub
         $counter->reset();
         $this->tt->clearTags('ocean:verydeep');
-        $this->assertEquals($built(), 'hello dear world!');
-        $this->assertEquals($counter->get(), 4); // also goes to all levels
+        $this->assertSame($built(), 'hello dear world!');
+        $this->assertSame($counter->get(), 4); // also goes to all levels
     }
 
     /**
@@ -489,18 +489,18 @@ abstract class TTCacheTest extends TestCase
         $built = fn () => $this->tt->remember('main', null, [new ShardingTag('shard', 'abc', 2)], fn () => 'main'.$main->increment())->value();
         $built2 = fn () => $this->tt->remember('sub', null, [new ShardingTag('shard', 'def', 2)], fn () => 'sub'.$sub->increment())->value();
 
-        $this->assertEquals('main1', $built());
-        $this->assertEquals('sub1', $built2());
+        $this->assertSame('main1', $built());
+        $this->assertSame('sub1', $built2());
         // Now they're cached
-        $this->assertEquals('main1', $built());
-        $this->assertEquals('sub1', $built2());
+        $this->assertSame('main1', $built());
+        $this->assertSame('sub1', $built2());
         // clear a shard tag clears only the value that was on that shard
         $this->tt->clearTags('shard-0');
-        $this->assertEquals('main2', $built());
-        $this->assertEquals('sub1', $built2());
+        $this->assertSame('main2', $built());
+        $this->assertSame('sub1', $built2());
         $this->tt->clearTags('shard-1');
-        $this->assertEquals('main2', $built());
-        $this->assertEquals('sub2', $built2());
+        $this->assertSame('main2', $built());
+        $this->assertSame('sub2', $built2());
     }
 
     public function counter()
@@ -580,14 +580,14 @@ abstract class TTCacheTest extends TestCase
             return $posts;
         })->value();
 
-        $this->assertEquals([
+        $this->assertSame([
             "<h1>Learn PHP the curved way</h1><hr /><div>...</div>",
             "<h1>Learn Python the curved way</h1><hr /><div>...</div>",
             "<h1>Learn Javascript the curved way</h1><hr /><div>...</div>",
             "<h1>Learn Rust the curved way</h1><hr /><div>...</div>",
             "<h1>Learn Go the curved way</h1><hr /><div>...</div>",
         ], $built());
-        $this->assertEquals([
+        $this->assertSame([
             'k-' . $this->hash('full-collection'),
             'k-' . $this->hash('Square\TTCache\TTCacheTest:blog-collection:abc'),
             'k-' . $this->hash('Square\TTCache\TTCacheTest:blog-collection:def'),
@@ -598,7 +598,7 @@ abstract class TTCacheTest extends TestCase
 
         $this->assertInstanceOf(LoadResult::class, $resultReaderStub->result);
         $this->assertEmpty($resultReaderStub->result->loadedKeys());
-        $this->assertEquals([
+        $this->assertSame([
             'Square\TTCache\TTCacheTest:blog-collection:abc',
             'Square\TTCache\TTCacheTest:blog-collection:def',
             'Square\TTCache\TTCacheTest:blog-collection:ghi',
@@ -610,7 +610,7 @@ abstract class TTCacheTest extends TestCase
         $resultReaderStub->result = null;
         $store->requestedKeys = [];
         $built();
-        $this->assertEquals([
+        $this->assertSame([
             'k-' . $this->hash('full-collection'),
         ], $store->requestedKeys);
         $this->assertNull($resultReaderStub->result);
@@ -621,14 +621,14 @@ abstract class TTCacheTest extends TestCase
         $resultReaderStub->result = null;
         $store->requestedKeys = [];
         $coll[0]->title = 'Learn PHP the straight way';
-        $this->assertEquals([
+        $this->assertSame([
             "<h1>Learn PHP the straight way</h1><hr /><div>...</div>",
             "<h1>Learn Python the curved way</h1><hr /><div>...</div>",
             "<h1>Learn Javascript the curved way</h1><hr /><div>...</div>",
             "<h1>Learn Rust the curved way</h1><hr /><div>...</div>",
             "<h1>Learn Go the curved way</h1><hr /><div>...</div>",
         ], $built());
-        $this->assertEquals([
+        $this->assertSame([
             'k-' . $this->hash('full-collection'),
             'k-' . $this->hash('Square\TTCache\TTCacheTest:blog-collection:abc'),
         ], $store->requestedKeys);
@@ -638,11 +638,9 @@ abstract class TTCacheTest extends TestCase
             2 => 'Square\TTCache\TTCacheTest:blog-collection:ghi',
             3 => 'Square\TTCache\TTCacheTest:blog-collection:klm',
             4 => 'Square\TTCache\TTCacheTest:blog-collection:nop',
-            /** @phpstan-ignore-next-line */
         ], $resultReaderStub->result->loadedKeys());
         $this->assertEquals([
             0 => 'Square\TTCache\TTCacheTest:blog-collection:abc',
-            /** @phpstan-ignore-next-line */
         ], $resultReaderStub->result->missingKeys());
 
         // Newly cached value still contains all the tags. So clearing by another tag will also work.
@@ -657,7 +655,7 @@ abstract class TTCacheTest extends TestCase
             "<h1>Learn Rust the curved way</h1><hr /><div>...</div>",
             "<h1>Learn Go the curved way</h1><hr /><div>...</div>",
         ], $built());
-        $this->assertEquals([
+        $this->assertSame([
             'k-' . $this->hash('full-collection'),
             'k-' . $this->hash('Square\TTCache\TTCacheTest:blog-collection:def'),
         ], $store->requestedKeys);
@@ -667,11 +665,9 @@ abstract class TTCacheTest extends TestCase
             2 => 'Square\TTCache\TTCacheTest:blog-collection:ghi',
             3 => 'Square\TTCache\TTCacheTest:blog-collection:klm',
             4 => 'Square\TTCache\TTCacheTest:blog-collection:nop',
-            /** @phpstan-ignore-next-line */
         ], $resultReaderStub->result->loadedKeys());
         $this->assertEquals([
             1 => 'Square\TTCache\TTCacheTest:blog-collection:def',
-            /** @phpstan-ignore-next-line */
         ], $resultReaderStub->result->missingKeys());
     }
 
@@ -683,7 +679,7 @@ abstract class TTCacheTest extends TestCase
         $this->tt = $this->getBogusTTCache();
         $r = $this->tt->remember('hello', null, [], fn () => 5);
 
-        $this->assertEquals(5, $r->value());
+        $this->assertSame(5, $r->value());
         $this->assertTrue($r->isMiss());
     }
 
@@ -700,11 +696,11 @@ abstract class TTCacheTest extends TestCase
             $r2 = $this->tt->remember('hello2', null, [], fn () => 2);
             $r3 = $this->tt->remember('hello3', null, [], fn () => 3);
 
-            $this->assertEquals(1, $r1->value());
+            $this->assertSame(1, $r1->value());
             $this->assertTrue($r1->isMiss());
-            $this->assertEquals(2, $r2->value());
+            $this->assertSame(2, $r2->value());
             $this->assertTrue($r2->isMiss());
-            $this->assertEquals(3, $r3->value());
+            $this->assertSame(3, $r3->value());
             $this->assertTrue($r3->isMiss());
         });
     }
