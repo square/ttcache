@@ -44,10 +44,14 @@ class TaggedStore
             $storedtags = array_keys($r->tags);
             $currentHashes = [];
             if (!empty($storedtags)) {
-                $currentHashes = $this->cache->getMultiple($storedtags);
-                if ($currentHashes instanceof Iterator) {
-                    $currentHashes = iterator_to_array($currentHashes);
-                }
+                 try {
+                     $currentHashes = $this->cache->getMultiple($storedtags);
+                     if ($currentHashes instanceof Iterator) {
+                         $currentHashes = iterator_to_array($currentHashes);
+                     }
+                 } catch (CacheException | SimpleCacheCacheException $e) {
+                     return new StoreResult(null, $e);
+                 }
             }
             if ($this->tagsAreValid($r->tags, $currentHashes)) {
                 return new StoreResult($r);
