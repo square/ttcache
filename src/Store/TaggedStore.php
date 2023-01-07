@@ -170,7 +170,7 @@ class TaggedStore
                     $tagHashes,
                     static fn($v) => $v !== null,
                 );
-            } catch (CacheStoreException $e) {
+            } catch (CacheException | SimpleCacheCacheException $e) {
                 $roCache = true;
             }
         }
