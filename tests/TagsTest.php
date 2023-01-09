@@ -20,8 +20,8 @@ class TagsTest extends TestCase
      */
     function transforms_map_to_tag_list()
     {
-        $this->assertEquals(['users:1'], Tags::fromMap(['users' => 1]));
-        $this->assertEquals(['users:1', 'products:2', 'locations:3'], Tags::fromMap([
+        $this->assertSame(['users:1'], Tags::fromMap(['users' => 1]));
+        $this->assertSame(['users:1', 'products:2', 'locations:3'], Tags::fromMap([
             'users' => '1',
             'products' => '2',
             'locations' => '3',
