@@ -638,11 +638,9 @@ abstract class TTCacheTest extends TestCase
             2 => 'Square\TTCache\TTCacheTest:blog-collection:ghi',
             3 => 'Square\TTCache\TTCacheTest:blog-collection:klm',
             4 => 'Square\TTCache\TTCacheTest:blog-collection:nop',
-            /** @phpstan-ignore-next-line */
         ], $resultReaderStub->result->loadedKeys());
         $this->assertEquals([
             0 => 'Square\TTCache\TTCacheTest:blog-collection:abc',
-            /** @phpstan-ignore-next-line */
         ], $resultReaderStub->result->missingKeys());
 
         // Newly cached value still contains all the tags. So clearing by another tag will also work.
@@ -667,11 +665,9 @@ abstract class TTCacheTest extends TestCase
             2 => 'Square\TTCache\TTCacheTest:blog-collection:ghi',
             3 => 'Square\TTCache\TTCacheTest:blog-collection:klm',
             4 => 'Square\TTCache\TTCacheTest:blog-collection:nop',
-            /** @phpstan-ignore-next-line */
         ], $resultReaderStub->result->loadedKeys());
         $this->assertEquals([
             1 => 'Square\TTCache\TTCacheTest:blog-collection:def',
-            /** @phpstan-ignore-next-line */
         ], $resultReaderStub->result->missingKeys());
     }
 
