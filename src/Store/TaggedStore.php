@@ -115,14 +115,19 @@ class TaggedStore
                 unset($r[$k]);
                 continue;
             }
-            $allTags = array_merge($allTags, array_keys($tv->tags));
+            $allTags[] = array_keys($tv->tags);
         }
+        $allTags = array_merge(...$allTags);
 
         $allCurrentTagHashes = [];
         if (!empty($allTags)) {
-            $allCurrentTagHashes = $this->cache->getMultiple($allTags);
-            if ($allCurrentTagHashes instanceof Iterator) {
-                $allCurrentTagHashes = iterator_to_array($allCurrentTagHashes);
+            try {
+                $allCurrentTagHashes = $this->cache->getMultiple($allTags);
+                if ($allCurrentTagHashes instanceof Iterator) {
+                    $allCurrentTagHashes = iterator_to_array($allCurrentTagHashes);
+                }
+            } catch (CacheException | SimpleCacheCacheException $e) {
+                return new StoreResult([], $e);
             }
         }
 
