@@ -66,7 +66,6 @@ class TTCache
      *
      * @return Result
      * @throws \Throwable
-     * @phpstan-ignore-next-line
      * @throws \Psr\SimpleCache\InvalidArgumentException
      */
     public function remember(string $key, ?int $ttl, array $tags, callable $cb) : Result

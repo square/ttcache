@@ -1,8 +1,8 @@
 watch:
-	watchexec -e php -cr -- "make stan && make tests"
+	watchexec -e php -c -r -- "make stan && make tests"
 
 watch-debug:
-	watchexec -e php -cr -- docker-compose exec php ./vendor/bin/phpunit --group debug
+	watchexec -e php -c -r -- docker-compose exec php ./vendor/bin/phpunit --group debug
 
 stan:
 	vendor/bin/phpstan analyse src tests --level 5

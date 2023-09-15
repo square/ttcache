@@ -32,21 +32,21 @@ class MemcachedStore implements CacheInterface
         }
     }
 
-    public function get($key, $default = null)
+    public function get(string $key, mixed $default = null): mixed
     {
         $result = $this->mc->get($key);
         $this->checkResultCode();
         return $result;
     }
 
-    public function set($key, $value, $ttl = null)
+    public function set(string $key, mixed $value, null|int|\DateInterval $ttl = null): bool
     {
         $result = $this->mc->set($key, $value, $ttl ?? 0);
         $this->checkResultCode();
         return $result;
     }
 
-    public function delete($key)
+    public function delete(string $key): bool
     {
         $result = $this->mc->delete($key);
         $this->checkResultCode();
@@ -58,28 +58,28 @@ class MemcachedStore implements CacheInterface
         throw new CacheStoreException('not implemented on purpose');
     }
 
-    public function getMultiple($keys, $default = null)
+    public function getMultiple(iterable $keys, mixed $default = null): iterable
     {
         $result = $this->mc->getMulti($keys);
         $this->checkResultCode();
         return $result;
     }
 
-    public function setMultiple($values, $ttl = null)
+    public function setMultiple(iterable $values, null|int|\DateInterval $ttl = null): bool
     {
         $result = $this->mc->setMulti($values, $ttl ?? 0);
         $this->checkResultCode();
         return $result;
     }
 
-    public function deleteMultiple($keys)
+    public function deleteMultiple(iterable $keys): bool
     {
         $result = $this->mc->deleteMulti($keys);
         $this->checkResultCode();
         return true;
     }
 
-    public function has($key)
+    public function has(string $key): bool
     {
         throw new CacheStoreException('not implemented');
     }
