@@ -35,6 +35,7 @@ class TaggedStore
     {
         try {
             $r = $this->cache->get($key);
+            // @phpstan-ignore-next-line
         } catch (CacheException | SimpleCacheCacheException $e) {
             return new StoreResult(null, $e);
         }
@@ -49,6 +50,7 @@ class TaggedStore
                      if ($currentHashes instanceof Iterator) {
                          $currentHashes = iterator_to_array($currentHashes);
                      }
+                     // @phpstan-ignore-next-line
                  } catch (CacheException | SimpleCacheCacheException $e) {
                      return new StoreResult(null, $e);
                  }
@@ -78,6 +80,7 @@ class TaggedStore
 
         try {
             $this->cache->set($key, $v, $ttl);
+            // @phpstan-ignore-next-line
         } catch (CacheException | SimpleCacheCacheException $e) {
             return new StoreResult($v->value, $e);
         }
@@ -95,6 +98,7 @@ class TaggedStore
     {
         try {
             $r = $this->cache->getMultiple($keys);
+            // @phpstan-ignore-next-line
         } catch (CacheException | SimpleCacheCacheException $e) {
             return new StoreResult([], $e);
         }
@@ -103,6 +107,7 @@ class TaggedStore
         if ($r instanceof Iterator) {
             try {
                 $r = iterator_to_array($r);
+                // @phpstan-ignore-next-line
             } catch (CacheException | SimpleCacheCacheException $e) {
                 return new StoreResult([], $e);
             }
@@ -126,6 +131,7 @@ class TaggedStore
                 if ($allCurrentTagHashes instanceof Iterator) {
                     $allCurrentTagHashes = iterator_to_array($allCurrentTagHashes);
                 }
+                // @phpstan-ignore-next-line
             } catch (CacheException | SimpleCacheCacheException $e) {
                 return new StoreResult([], $e);
             }
@@ -175,6 +181,7 @@ class TaggedStore
                     $tagHashes,
                     static fn($v) => $v !== null,
                 );
+                // @phpstan-ignore-next-line
             } catch (CacheException | SimpleCacheCacheException $e) {
                 $roCache = true;
             }

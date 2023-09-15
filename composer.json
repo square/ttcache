@@ -30,6 +30,6 @@
         "phpunit/phpunit": "^9.5",
         "psy/psysh": "^0.11.1",
         "symfony/var-dumper": "^5",
-        "phpstan/phpstan": "^1.4"
+        "phpstan/phpstan": "^1.10"
     }
 }
