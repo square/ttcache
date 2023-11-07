@@ -21,7 +21,8 @@
     ],
     "require": {
         "php": ">=8.0",
-        "psr/simple-cache": "^2|^3"
+        "psr/simple-cache": "^2|^3",
+        "psr/cache": "^3.0"
     },
     "suggest": {
         "ext-memcached": "Needed to use Square\\TTCache\\Store\\MemcachedStore and Square\\TTCache\\Store\\ShardedMemcachedStore implementations"

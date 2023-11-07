@@ -1,4 +1,6 @@
-<?php declare(strict_types=1);
+<?php
+
+declare(strict_types=1);
 
 namespace Square\TTCache\Store;
 
@@ -31,11 +33,10 @@ class TaggedStore
      * @param string $key
      * @return StoreResult
      */
-    public function get(string $key) : StoreResult
+    public function get(string $key): StoreResult
     {
         try {
             $r = $this->cache->get($key);
-            // @phpstan-ignore-next-line
         } catch (CacheException | SimpleCacheCacheException $e) {
             return new StoreResult(null, $e);
         }
@@ -45,15 +46,14 @@ class TaggedStore
             $storedtags = array_keys($r->tags);
             $currentHashes = [];
             if (!empty($storedtags)) {
-                 try {
-                     $currentHashes = $this->cache->getMultiple($storedtags);
-                     if ($currentHashes instanceof Iterator) {
-                         $currentHashes = iterator_to_array($currentHashes);
-                     }
-                     // @phpstan-ignore-next-line
-                 } catch (CacheException | SimpleCacheCacheException $e) {
-                     return new StoreResult(null, $e);
-                 }
+                try {
+                    $currentHashes = $this->cache->getMultiple($storedtags);
+                    if ($currentHashes instanceof Iterator) {
+                        $currentHashes = iterator_to_array($currentHashes);
+                    }
+                } catch (CacheException | SimpleCacheCacheException $e) {
+                    return new StoreResult(null, $e);
+                }
             }
             if ($this->tagsAreValid($r->tags, $currentHashes)) {
                 return new StoreResult($r);
@@ -73,14 +73,13 @@ class TaggedStore
      * @param TaggedValue|mixed $value
      * @return StoreResult
      */
-    public function store(string $key, ?int $ttl, array $taghashes, $value) : StoreResult
+    public function store(string $key, ?int $ttl, array $taghashes, $value): StoreResult
     {
         // store result
         $v = new TaggedValue($value, $taghashes);
 
         try {
             $this->cache->set($key, $v, $ttl);
-            // @phpstan-ignore-next-line
         } catch (CacheException | SimpleCacheCacheException $e) {
             return new StoreResult($v->value, $e);
         }
@@ -94,11 +93,10 @@ class TaggedStore
      * @param array $keys
      * @return StoreResult
      */
-    public function getMultiple(array $keys) : StoreResult
+    public function getMultiple(array $keys): StoreResult
     {
         try {
             $r = $this->cache->getMultiple($keys);
-            // @phpstan-ignore-next-line
         } catch (CacheException | SimpleCacheCacheException $e) {
             return new StoreResult([], $e);
         }
@@ -107,7 +105,6 @@ class TaggedStore
         if ($r instanceof Iterator) {
             try {
                 $r = iterator_to_array($r);
-                // @phpstan-ignore-next-line
             } catch (CacheException | SimpleCacheCacheException $e) {
                 return new StoreResult([], $e);
             }
@@ -131,7 +128,6 @@ class TaggedStore
                 if ($allCurrentTagHashes instanceof Iterator) {
                     $allCurrentTagHashes = iterator_to_array($allCurrentTagHashes);
                 }
-                // @phpstan-ignore-next-line
             } catch (CacheException | SimpleCacheCacheException $e) {
                 return new StoreResult([], $e);
             }
@@ -152,7 +148,7 @@ class TaggedStore
     /**
      * Get the current taghashes from the cache store or create and store new ones if they don't exist
      */
-    public function fetchOrMakeTagHashes(array $tags, ?int $ttl = null) : array
+    public function fetchOrMakeTagHashes(array $tags, ?int $ttl = null): array
     {
         // Should the cache be marked as readonly mode?
         $roCache = false;
@@ -168,20 +164,19 @@ class TaggedStore
                     $this->generateHash(),
                 ],
             );
-            $tags = [$ttlTag, ... $tags];
+            $tags = [$ttlTag, ...$tags];
         }
 
         if (!empty($tags)) {
             try {
                 $tagHashes = $this->cache->getMultiple($tags);
                 if ($tagHashes instanceof Iterator) {
-                    $tagHashes = iterator_to_array($tagHashes) ;
+                    $tagHashes = iterator_to_array($tagHashes);
                 }
                 $tagHashes = array_filter(
                     $tagHashes,
-                    static fn($v) => $v !== null,
+                    static fn ($v) => $v !== null,
                 );
-                // @phpstan-ignore-next-line
             } catch (CacheException | SimpleCacheCacheException $e) {
                 $roCache = true;
             }
@@ -213,7 +208,7 @@ class TaggedStore
      * @param string ...$tags
      * @return void
      */
-    public function clearTags(string ...$tags) : void
+    public function clearTags(string ...$tags): void
     {
         $tagHashes = [];
         foreach ($tags as $tag) {
@@ -227,7 +222,7 @@ class TaggedStore
      *
      * @return string
      */
-    protected function generateHash() : string
+    protected function generateHash(): string
     {
         return bin2hex(random_bytes(16));
     }

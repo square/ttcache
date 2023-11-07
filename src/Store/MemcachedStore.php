@@ -1,4 +1,6 @@
-<?php declare(strict_types=1);
+<?php
+
+declare(strict_types=1);
 
 namespace Square\TTCache\Store;
 
@@ -25,7 +27,7 @@ class MemcachedStore implements CacheInterface
         $this->mc = $mc;
     }
 
-    protected function checkResultCode() : void
+    protected function checkResultCode(): void
     {
         if (!in_array($this->mc->getResultCode(), self::MC_VALID_CODES)) {
             throw new CacheStoreException('invalid MC return code', $this->mc->getResultCode());
@@ -41,6 +43,12 @@ class MemcachedStore implements CacheInterface
 
     public function set(string $key, mixed $value, null|int|\DateInterval $ttl = null): bool
     {
+        if (is_null($ttl)) {
+            $ttl = 0;
+        }
+        if ($ttl instanceof \DateInterval) {
+            $ttl = (new \DateTime())->add($ttl)->getTimestamp() - time();
+        }
         $result = $this->mc->set($key, $value, $ttl ?? 0);
         $this->checkResultCode();
         return $result;
