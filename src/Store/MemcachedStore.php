@@ -49,7 +49,7 @@ class MemcachedStore implements CacheInterface
         if ($ttl instanceof \DateInterval) {
             $ttl = (new \DateTime())->add($ttl)->getTimestamp() - time();
         }
-        $result = $this->mc->set($key, $value, $ttl ?? 0);
+        $result = $this->mc->set($key, $value, $ttl);
         $this->checkResultCode();
         return $result;
     }
