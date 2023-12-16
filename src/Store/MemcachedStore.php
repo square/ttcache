@@ -4,17 +4,17 @@ declare(strict_types=1);
 
 namespace Square\TTCache\Store;
 
-use Psr\SimpleCache\CacheInterface;
 use Memcached;
 
 /**
  * PSR Cache interface implementation of memcache.
  */
-class MemcachedStore implements CacheInterface
+class MemcachedStore implements CacheStoreInterface
 {
     protected Memcached $mc;
 
     private const MC_SUCCESS = 0;
+
     private const MC_NOT_FOUND = 16;
 
     private const MC_VALID_CODES = [
@@ -29,7 +29,7 @@ class MemcachedStore implements CacheInterface
 
     protected function checkResultCode(): void
     {
-        if (!in_array($this->mc->getResultCode(), self::MC_VALID_CODES)) {
+        if (! in_array($this->mc->getResultCode(), self::MC_VALID_CODES)) {
             throw new CacheStoreException('invalid MC return code', $this->mc->getResultCode());
         }
     }
@@ -38,10 +38,11 @@ class MemcachedStore implements CacheInterface
     {
         $result = $this->mc->get($key);
         $this->checkResultCode();
+
         return $result;
     }
 
-    public function set(string $key, mixed $value, null|int|\DateInterval $ttl = null): bool
+    public function set(string $key, mixed $value, int|\DateInterval $ttl = null): bool
     {
         if (is_null($ttl)) {
             $ttl = 0;
@@ -51,6 +52,7 @@ class MemcachedStore implements CacheInterface
         }
         $result = $this->mc->set($key, $value, $ttl);
         $this->checkResultCode();
+
         return $result;
     }
 
@@ -58,6 +60,7 @@ class MemcachedStore implements CacheInterface
     {
         $result = $this->mc->delete($key);
         $this->checkResultCode();
+
         return $result;
     }
 
@@ -70,13 +73,15 @@ class MemcachedStore implements CacheInterface
     {
         $result = $this->mc->getMulti($keys);
         $this->checkResultCode();
+
         return $result;
     }
 
-    public function setMultiple(iterable $values, null|int|\DateInterval $ttl = null): bool
+    public function setMultiple(iterable $values, int|\DateInterval $ttl = null): bool
     {
         $result = $this->mc->setMulti($values, $ttl ?? 0);
         $this->checkResultCode();
+
         return $result;
     }
 
@@ -84,6 +89,7 @@ class MemcachedStore implements CacheInterface
     {
         $result = $this->mc->deleteMulti($keys);
         $this->checkResultCode();
+
         return true;
     }
 

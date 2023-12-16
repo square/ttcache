@@ -2,32 +2,27 @@
 
 namespace Square\TTCache;
 
-use Psr\SimpleCache\CacheInterface;
+use Square\TTCache\Store\CacheStoreInterface;
 
-class KeyTracker implements CacheInterface
+class KeyTracker implements CacheStoreInterface
 {
     /**
      * @var array
      */
     public $requestedKeys = [];
 
-    /**
-     * @var CacheInterface
-     */
-    private CacheInterface $inner;
-
-    public function __construct(CacheInterface $inner)
+    public function __construct(private CacheStoreInterface $inner)
     {
-        $this->inner = $inner;
     }
 
     public function get(string $key, mixed $default = null): mixed
     {
         $this->requestedKeys[] = $key;
+
         return $this->inner->get($key, $default);
     }
 
-    public function set(string $key, mixed $value, null|int|\DateInterval $ttl = null): bool
+    public function set(string $key, mixed $value, int|\DateInterval $ttl = null): bool
     {
         return $this->inner->set($key, $value, $ttl);
     }
@@ -47,7 +42,7 @@ class KeyTracker implements CacheInterface
         return $this->inner->getMultiple($keys);
     }
 
-    public function setMultiple(iterable $values, null|int|\DateInterval $ttl = null): bool
+    public function setMultiple(iterable $values, int|\DateInterval $ttl = null): bool
     {
         return $this->inner->setMultiple($values, $ttl);
     }

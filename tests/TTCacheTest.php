@@ -6,8 +6,8 @@ namespace Square\TTCache;
 
 use Memcached;
 use PHPUnit\Framework\TestCase;
-use Psr\SimpleCache\CacheInterface;
 use Square\TTCache\ReturnDirective\BypassCache;
+use Square\TTCache\Store\CacheStoreInterface;
 use Square\TTCache\Store\TaggedStore;
 use Square\TTCache\Tags\HeritableTag;
 use Square\TTCache\Tags\ShardingTag;
@@ -555,21 +555,21 @@ abstract class TTCacheTest extends TestCase
 
         /*
          * Very hacky, but we are using reflection here to add a layer around
-         * the inner-most CacheInterface that tracks the keys requested by the TaggedStore
+         * the inner-most CacheStoreInterface that tracks the keys requested by the TaggedStore
          * via $store->get(...). e.g.:
          */
         $reflClass = new \ReflectionClass(TTCache::class);
         $reflProperty = $reflClass->getProperty('cache');
         $reflProperty->setAccessible(true);
-        // This is the TaggedStore instance on TTCache. This would contain the CacheInterface we want to track.
+        // This is the TaggedStore instance on TTCache. This would contain the CacheStoreInterface we want to track.
         $taggedStore = $reflProperty->getValue($this->tt);
         $reflClass = new \ReflectionClass(TaggedStore::class);
         $reflProperty = $reflClass->getProperty('cache');
         $reflProperty->setAccessible(true);
         /**
-         * This is the inner-most CacheInterface.
+         * This is the inner-most CacheStoreInterface.
          *
-         * @var CacheInterface $origStore
+         * @var CacheStoreInterface $origStore
          */
         $origStore = $reflProperty->getValue($taggedStore);
 

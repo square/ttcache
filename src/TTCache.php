@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace Square\TTCache;
 
 use Closure;
-use Psr\SimpleCache\CacheInterface;
 use Square\TTCache\ReturnDirective\BypassCacheInterface;
+use Square\TTCache\Store\CacheStoreInterface;
 use Square\TTCache\Store\TaggedStore;
 use Square\TTCache\Tags\HeritableTag;
 use Square\TTCache\Tags\TagInterface;
@@ -33,7 +33,7 @@ class TTCache
 
     protected TaggedStore $cache;
 
-    public function __construct(CacheInterface $cache, Closure $keyHasher = null)
+    public function __construct(CacheStoreInterface $cache, Closure $keyHasher = null)
     {
         $this->cache = new TaggedStore($cache);
         $this->keyHasher = $keyHasher ?? fn ($x) => md5($x);
@@ -67,7 +67,6 @@ class TTCache
      *                                          tags applied to all wrapping calls to `remember`
      *
      * @throws \Throwable
-     * @throws \Psr\SimpleCache\InvalidArgumentException
      */
     public function remember(string $key, callable $cb, array $tags = [], int $ttl = null): Result
     {
