@@ -32,11 +32,6 @@ class KeyTracker implements CacheStoreInterface
         return $this->inner->delete($key);
     }
 
-    public function clear(): bool
-    {
-        return $this->inner->clear();
-    }
-
     public function getMultiple(iterable $keys, mixed $default = null): iterable
     {
         return $this->inner->getMultiple($keys);
@@ -50,10 +45,5 @@ class KeyTracker implements CacheStoreInterface
     public function deleteMultiple(iterable $keys): bool
     {
         return $this->inner->deleteMultiple($keys);
-    }
-
-    public function has(string $key): bool
-    {
-        return $this->inner->has($key);
     }
 }
