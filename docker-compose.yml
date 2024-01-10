@@ -9,5 +9,3 @@ services:
     command: tail -f phpunit.xml
   memcached:
     image: "memcached:latest"
-  redis:
-    image: "redis:latest"

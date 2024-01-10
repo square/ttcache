@@ -1,10 +1,12 @@
-<?php declare(strict_types=1);
+<?php
+
+declare(strict_types=1);
 
 namespace Square\TTCache;
 
 use Closure;
-use Psr\SimpleCache\CacheInterface;
 use Square\TTCache\ReturnDirective\BypassCacheInterface;
+use Square\TTCache\Store\CacheStoreInterface;
 use Square\TTCache\Store\TaggedStore;
 use Square\TTCache\Tags\HeritableTag;
 use Square\TTCache\Tags\TagInterface;
@@ -31,32 +33,32 @@ class TTCache
 
     protected TaggedStore $cache;
 
-    public function __construct(CacheInterface $cache, Closure $keyHasher = null)
+    public function __construct(CacheStoreInterface $cache, Closure $keyHasher = null)
     {
         $this->cache = new TaggedStore($cache);
         $this->keyHasher = $keyHasher ?? fn ($x) => md5($x);
     }
 
-    protected function hashedKey(string $k) : string
+    protected function hashedKey(string $k): string
     {
-        return 'k-' . ($this->keyHasher)($k);
+        return 'k-'.($this->keyHasher)($k);
     }
 
-    protected function hashedTag(string $t) : string
+    protected function hashedTag(string $t): string
     {
-        return 't-' . ($this->keyHasher)($t);
+        return 't-'.($this->keyHasher)($t);
     }
 
     /**
      * Cache the result of a callback at the given key
      *
-     * @param string $key                       The unique key where this value will be cached
-     * @param callable $cb                      The callback to compute the value to cache
-     * @param int|null $ttl                     How long this value should stay in cache. A ttl applied in a nested
+     * @param  string  $key                       The unique key where this value will be cached
+     * @param  callable  $cb                      The callback to compute the value to cache
+     * @param  int|null  $ttl                     How long this value should stay in cache. A ttl applied in a nested
      *                                          call to `remember` will also apply to any value coming in a wrapping
      *                                          call to the "remember" setting the ttl. If multiple such TTL calls
      *                                          exist in nested calls, the shortest one will win.
-     * @param array<string|TagInterface> $tags A list of tags / surrogate keys that can be used to clear this value
+     * @param  array<string|TagInterface>  $tags A list of tags / surrogate keys that can be used to clear this value
      *                                          out of cache. For example, if many different calls to remember exist
      *                                          in the codebase that render a user's data and all of those are tagged
      *                                          with 'user:1' (1 being the user's id), then using 'user:1' to clear
@@ -64,12 +66,9 @@ class TTCache
      *                                          the cache. A nested call to remember that uses tags will have all its
      *                                          tags applied to all wrapping calls to `remember`
      *
-     * @return Result
      * @throws \Throwable
-     * @phpstan-ignore-next-line
-     * @throws \Psr\SimpleCache\InvalidArgumentException
      */
-    public function remember(string $key, ?int $ttl, array $tags, callable $cb) : Result
+    public function remember(string $key, callable $cb, array $tags = [], int $ttl = null): Result
     {
         $hkey = $this->hashedkey($key);
         $htags = array_map([$this, 'hashedTag'], $tags);
@@ -80,6 +79,7 @@ class TTCache
             $r = $this->tree->getFromCache($hkey);
             $this->tree->child($r->tags);
             $this->resetTree($isRoot);
+
             return Result::fromTaggedValue($r, true);
         }
 
@@ -87,6 +87,7 @@ class TTCache
         if ($r->value()) {
             $this->tree->child($r->value()->tags);
             $this->resetTree($isRoot);
+
             return Result::fromTaggedValue($r->value(), true)->withError($r->error());
         }
 
@@ -102,6 +103,7 @@ class TTCache
             $tagHashes = $this->tree->tagHashes();
             if ($value instanceof BypassCacheInterface) {
                 $value = $value->value();
+
                 return new Result($value, false, array_keys($tagHashes));
             }
         } catch (\Throwable $t) {
@@ -113,7 +115,7 @@ class TTCache
         $this->tree = $parent;
 
         $error = $r->error();
-        if (!$roCache) {
+        if (! $roCache) {
             $result = $this->cache->store($hkey, $ttl, $tagHashes, $value);
             $error = $result->error();
             $value = $result->value();
@@ -122,6 +124,7 @@ class TTCache
         if ($isRoot) {
             $this->tree = null;
         }
+
         return (new Result($value, false, array_keys($tagHashes)))->withError($error);
     }
 
@@ -148,16 +151,18 @@ class TTCache
         if ($isRoot) {
             $this->tree = null;
         }
+
         return $value;
     }
 
-    protected function initTree() : bool
+    protected function initTree(): bool
     {
         $isRoot = false;
         if ($this->tree === null) {
             $isRoot = true;
             $this->tree = new TagNode();
         }
+
         return $isRoot;
     }
 
@@ -168,7 +173,7 @@ class TTCache
         }
     }
 
-    protected function advanceTree(array $taghashes, array $tags) : TagNode
+    protected function advanceTree(array $taghashes, array $tags): TagNode
     {
         $parent = $this->tree;
         $this->tree = $parent->child($taghashes);
@@ -184,9 +189,6 @@ class TTCache
      * Pre-loads a set of keys in the current node's local cache.
      * The preloaded data can be retrieved directly from memory from this node's
      * scope or any descendant node instead of going to the cache store.
-     *
-     * @param array $keys
-     * @return LoadResult
      */
     public function load(array $keys): LoadResult
     {
@@ -202,18 +204,16 @@ class TTCache
             $this->rawTags(array_keys($tv->tags));
         }
         $this->tree->addToCache($validValuesResult->value());
+
         return new LoadResult($loadedKeys, $keys, $validValuesResult->error());
     }
 
     /**
      * Applies a set of given tags without hashing them (useful for re-using tags directly)
-     *
-     * @param array $tags
-     * @return void
      */
-    protected function rawTags(array $tags) : void
+    protected function rawTags(array $tags): void
     {
-        if (!$this->tree) {
+        if (! $this->tree) {
             return;
         }
         ['taghashes' => $tagHashes] = $this->cache->fetchOrMakeTagHashes($tags);
@@ -222,11 +222,8 @@ class TTCache
 
     /**
      * Makes any value associated with any of the given tags invalid in the cache
-     *
-     * @param string ...$tags
-     * @return void
      */
-    public function clearTags(string ...$tags) : void
+    public function clearTags(string ...$tags): void
     {
         $htags = array_map([$this, 'hashedTag'], $tags);
         $this->cache->clearTags(...$htags);

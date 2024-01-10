@@ -13,7 +13,15 @@ jobs:
   build:
     container: ubuntu:latest
     runs-on: ubuntu-latest
-    
+
+    strategy:
+      fail-fast: true
+      matrix:
+        php: ['8.0', '8.1', '8.2']
+        psr: ['2.0', '3.0']
+
+    name: 'PHP ${{ matrix.php }} - Simple Cache: ${{matrix.psr}}'
+
     services:
       redis:
         image: redis:latest
@@ -22,16 +30,16 @@ jobs:
 
     steps:
     - uses: actions/checkout@v3
-    
+
     - name: Setup PHP with PECL extension
       uses: shivammathur/setup-php@v2
       with:
-        php-version: '7.4'
+        php-version: '${{ matrix.php }}'
         extensions: memcached, redis
-        
+
     #- name: Setup Memcache
     #  uses: niden/actions-memcached@v7
-      
+
     #- name: Setup Redis
     #  uses: zhulik/redis-action@1.1.0
 
@@ -48,13 +56,13 @@ jobs:
           ${{ runner.os }}-php-
 
     - name: Install dependencies
-      run: composer install --prefer-dist --no-progress
+      run: composer update --with='psr/simple-cache:${{matrix.psr}}' --prefer-dist --no-interaction --no-progress
 
     # Add a test script to composer.json, for instance: "test": "vendor/bin/phpunit"
     # Docs: https://getcomposer.org/doc/articles/scripts.md
 
     - name: Run static analysis
       run: ./vendor/bin/phpstan analyse src tests --level 5
-      
+
     - name: Run unit tests
       run: ./vendor/bin/phpunit tests

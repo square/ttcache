@@ -2,63 +2,48 @@
 
 namespace Square\TTCache;
 
-use Psr\SimpleCache\CacheInterface;
+use Square\TTCache\Store\CacheStoreInterface;
 
-class KeyTracker implements CacheInterface
+class KeyTracker implements CacheStoreInterface
 {
     /**
      * @var array
      */
     public $requestedKeys = [];
 
-    /**
-     * @var CacheInterface
-     */
-    private CacheInterface $inner;
-
-    public function __construct(CacheInterface $inner)
+    public function __construct(private CacheStoreInterface $inner)
     {
-        $this->inner = $inner;
     }
 
-    public function get($key, $default = null)
+    public function get(string $key, mixed $default = null): mixed
     {
         $this->requestedKeys[] = $key;
+
         return $this->inner->get($key, $default);
     }
 
-    public function set($key, $value, $ttl = null)
+    public function set(string $key, mixed $value, int|\DateInterval $ttl = null): bool
     {
         return $this->inner->set($key, $value, $ttl);
     }
 
-    public function delete($key)
+    public function delete(string $key): bool
     {
         return $this->inner->delete($key);
     }
 
-    public function clear()
-    {
-        return $this->inner->clear();
-    }
-
-    public function getMultiple($keys, $default = null)
+    public function getMultiple(iterable $keys, mixed $default = null): iterable
     {
         return $this->inner->getMultiple($keys);
     }
 
-    public function setMultiple($values, $ttl = null)
+    public function setMultiple(iterable $values, int|\DateInterval $ttl = null): bool
     {
         return $this->inner->setMultiple($values, $ttl);
     }
 
-    public function deleteMultiple($keys)
+    public function deleteMultiple(iterable $keys): bool
     {
         return $this->inner->deleteMultiple($keys);
-    }
-
-    public function has($key)
-    {
-        return $this->inner->has($key);
     }
 }

@@ -1,10 +1,11 @@
-<?php declare(strict_types=1);
+<?php
+
+declare(strict_types=1);
 
 namespace Square\TTCache\Store;
 
-use Psr\SimpleCache\CacheException;
 use Exception;
 
-class CacheStoreException extends Exception implements CacheException
+class CacheStoreException extends Exception
 {
 }
