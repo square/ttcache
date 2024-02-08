@@ -33,7 +33,7 @@ class TTCache
 
     protected TaggedStore $cache;
 
-    public function __construct(CacheStoreInterface $cache, Closure $keyHasher = null)
+    public function __construct(CacheStoreInterface $cache, ?Closure $keyHasher = null)
     {
         $this->cache = new TaggedStore($cache);
         $this->keyHasher = $keyHasher ?? fn ($x) => md5($x);
@@ -44,34 +44,34 @@ class TTCache
         return 'k-'.($this->keyHasher)($k);
     }
 
-    protected function hashedTag(string $t): string
+    protected function hashedTag(string|TagInterface $t): string
     {
-        return 't-'.($this->keyHasher)($t);
+        return 't-'.($this->keyHasher)((string) $t);
     }
 
     /**
      * Cache the result of a callback at the given key
      *
-     * @param  string  $key                       The unique key where this value will be cached
-     * @param  callable  $cb                      The callback to compute the value to cache
-     * @param  int|null  $ttl                     How long this value should stay in cache. A ttl applied in a nested
-     *                                          call to `remember` will also apply to any value coming in a wrapping
-     *                                          call to the "remember" setting the ttl. If multiple such TTL calls
-     *                                          exist in nested calls, the shortest one will win.
-     * @param  array<string|TagInterface>  $tags A list of tags / surrogate keys that can be used to clear this value
-     *                                          out of cache. For example, if many different calls to remember exist
-     *                                          in the codebase that render a user's data and all of those are tagged
-     *                                          with 'user:1' (1 being the user's id), then using 'user:1' to clear
-     *                                          the cache would eliminate all values that were tagged with this from
-     *                                          the cache. A nested call to remember that uses tags will have all its
-     *                                          tags applied to all wrapping calls to `remember`
+     * @param  string  $key  The unique key where this value will be cached
+     * @param  callable  $cb  The callback to compute the value to cache
+     * @param  int|null  $ttl  How long this value should stay in cache. A ttl applied in a nested
+     *                         call to `remember` will also apply to any value coming in a wrapping
+     *                         call to the "remember" setting the ttl. If multiple such TTL calls
+     *                         exist in nested calls, the shortest one will win.
+     * @param  array<string|TagInterface>  $tags  A list of tags / surrogate keys that can be used to clear this value
+     *                                            out of cache. For example, if many different calls to remember exist
+     *                                            in the codebase that render a user's data and all of those are tagged
+     *                                            with 'user:1' (1 being the user's id), then using 'user:1' to clear
+     *                                            the cache would eliminate all values that were tagged with this from
+     *                                            the cache. A nested call to remember that uses tags will have all its
+     *                                            tags applied to all wrapping calls to `remember`
      *
      * @throws \Throwable
      */
-    public function remember(string $key, callable $cb, array $tags = [], int $ttl = null): Result
+    public function remember(string $key, callable $cb, array $tags = [], ?int $ttl = null): Result
     {
         $hkey = $this->hashedkey($key);
-        $htags = array_map([$this, 'hashedTag'], $tags);
+        $htags = $this->hashTags(...$tags);
         $isRoot = $this->initTree();
 
         // Retrieve it from local cache if possible
@@ -130,7 +130,7 @@ class TTCache
 
     public function wrap(array $tags, callable $cb)
     {
-        $htags = array_map([$this, 'hashedTag'], $tags);
+        $htags = $this->hashTags(...$tags);
         $isRoot = $this->initTree();
 
         ['taghashes' => $tagHashes] = $this->cache->fetchOrMakeTagHashes($htags, null);
@@ -177,9 +177,8 @@ class TTCache
     {
         $parent = $this->tree;
         $this->tree = $parent->child($taghashes);
-        $this->tree->addHeritableTags(array_map(
-            [$this, 'hashedTag'],
-            array_filter($tags, fn ($t) => $t instanceof HeritableTag)
+        $this->tree->addHeritableTags($this->hashTags(
+            ...array_filter($tags, fn ($t) => $t instanceof HeritableTag)
         ));
 
         return $parent;
@@ -225,7 +224,11 @@ class TTCache
      */
     public function clearTags(string ...$tags): void
     {
-        $htags = array_map([$this, 'hashedTag'], $tags);
-        $this->cache->clearTags(...$htags);
+        $this->cache->clearTags(...$this->hashTags(...$tags));
+    }
+
+    public function hashTags(string|TagInterface ...$tags): array
+    {
+        return array_map(fn ($t) => $this->hashedTag($t), $tags);
     }
 }

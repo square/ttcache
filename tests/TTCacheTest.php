@@ -722,6 +722,16 @@ abstract class TTCacheTest extends TestCase
     }
 
     /**
+     * @test
+     */
+    public function tag_hashes_match()
+    {
+        $tags = ['tag', 'other:tag'];
+        $r = $this->tt->remember('testkey', fn () => 'hello 1', $tags);
+        $this->assertSame($r->tags(), $this->tt->hashTags(...$tags));
+    }
+
+    /**
      * The hashing function being used in tests. Using the default here, which is md5 (https://www.php.net/manual/en/function.md5.php)
      */
     protected function hash(string $key): string
