@@ -22,7 +22,7 @@ class KeyTracker implements CacheStoreInterface
         return $this->inner->get($key, $default);
     }
 
-    public function set(string $key, mixed $value, int|\DateInterval $ttl = null): bool
+    public function set(string $key, mixed $value, int|\DateInterval|null $ttl = null): bool
     {
         return $this->inner->set($key, $value, $ttl);
     }
@@ -34,10 +34,14 @@ class KeyTracker implements CacheStoreInterface
 
     public function getMultiple(iterable $keys, mixed $default = null): iterable
     {
+        foreach ($keys as $key) {
+            $this->requestedKeys[] = $key;
+        }
+
         return $this->inner->getMultiple($keys);
     }
 
-    public function setMultiple(iterable $values, int|\DateInterval $ttl = null): bool
+    public function setMultiple(iterable $values, int|\DateInterval|null $ttl = null): bool
     {
         return $this->inner->setMultiple($values, $ttl);
     }
@@ -45,5 +49,10 @@ class KeyTracker implements CacheStoreInterface
     public function deleteMultiple(iterable $keys): bool
     {
         return $this->inner->deleteMultiple($keys);
+    }
+
+    public function getRequestedKeys(): array
+    {
+        return array_filter($this->requestedKeys, fn ($key) => ! str_starts_with($key, 't-'));
     }
 }
