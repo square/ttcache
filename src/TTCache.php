@@ -75,20 +75,27 @@ class TTCache
         $isRoot = $this->initTree();
 
         // Retrieve it from local cache if possible
+        $isKnownMiss = false;
         if ($this->tree->inCache($hkey)) {
             $r = $this->tree->getFromCache($hkey);
-            $this->tree->child($r->tags);
-            $this->resetTree($isRoot);
+            if ($r instanceof KnownMiss) {
+                $isKnownMiss = true;
+            } else {
+                $this->tree->child($r->tags);
+                $this->resetTree($isRoot);
 
-            return Result::fromTaggedValue($r, true);
+                return Result::fromTaggedValue($r, true);
+            }
         }
 
-        $r = $this->cache->get($hkey);
-        if ($r->value()) {
-            $this->tree->child($r->value()->tags);
-            $this->resetTree($isRoot);
+        if (! $isKnownMiss) { // If it's a known miss, don't bother checking the cache
+            $r = $this->cache->get($hkey);
+            if ($r->value()) {
+                $this->tree->child($r->value()->tags);
+                $this->resetTree($isRoot);
 
-            return Result::fromTaggedValue($r->value(), true)->withError($r->error());
+                return Result::fromTaggedValue($r->value(), true)->withError($r->error());
+            }
         }
 
         ['readonly' => $roCache, 'taghashes' => $tagHashes] = $this->cache->fetchOrMakeTagHashes($htags, $ttl);
@@ -203,6 +210,11 @@ class TTCache
             $this->rawTags(array_keys($tv->tags));
         }
         $this->tree->addToCache($validValuesResult->value());
+
+        // Add known misses to the local cache for the keys that were not found
+        $missingKeys = array_diff($hkeys, array_keys($validValuesResult->value()));
+        $missingKeys = array_combine($missingKeys, array_fill(0, count($missingKeys), new KnownMiss));
+        $this->tree->addToCache($missingKeys);
 
         return new LoadResult($loadedKeys, $keys, $validValuesResult->error());
     }

@@ -7,8 +7,6 @@ namespace Square\TTCache;
 use Memcached;
 use PHPUnit\Framework\TestCase;
 use Square\TTCache\ReturnDirective\BypassCache;
-use Square\TTCache\Store\CacheStoreInterface;
-use Square\TTCache\Store\TaggedStore;
 use Square\TTCache\Tags\HeritableTag;
 use Square\TTCache\Tags\ShardingTag;
 
@@ -18,12 +16,16 @@ abstract class TTCacheTest extends TestCase
 
     protected Memcached $mc;
 
+    protected KeyTracker $keyTracker;
+
     public function setUp(): void
     {
         $this->tt = $this->getTTCache();
     }
 
     abstract public function getTTCache(): TTCache;
+
+    abstract public function getTTCacheWithKeyTracker(): TTCache;
 
     /**
      * Returns a TTCache implementation which will fail connecting to the
@@ -295,7 +297,7 @@ abstract class TTCacheTest extends TestCase
         });
 
         $this->assertSame($built()->value(), 'hello dear world!');
-        $this->assertSame($built()->tags(), ['t-'.md5('uppertag'), 't-'.md5('sub:1')]);
+        $this->assertSame($built()->tags(), ['t-uppertag', 't-sub:1']);
         $this->assertSame($counter->get(), 2, 'expected first call to call all 4 levels.');
 
         $this->tt->clearTags(('uppertag'));
@@ -304,7 +306,7 @@ abstract class TTCacheTest extends TestCase
         // Only 1 level of re-computing happened. 'sub' was retrieved from cache
         // but its tags still got applied to the upper level
         $this->assertSame($built()->value(), 'hello dear world!');
-        $this->assertSame($built()->tags(), ['t-'.md5('uppertag'), 't-'.md5('sub:1')]);
+        $this->assertSame($built()->tags(), ['t-uppertag', 't-sub:1']);
         $this->assertSame($counter->get(), 1, 'expected first call to call all 4 levels.');
 
         $this->tt->clearTags(('sub:1'));
@@ -312,7 +314,7 @@ abstract class TTCacheTest extends TestCase
 
         // So now when clearing the sub tag, we go 2 levels deep
         $this->assertSame($built()->value(), 'hello dear world!');
-        $this->assertSame($built()->tags(), ['t-'.md5('uppertag'), 't-'.md5('sub:1')]);
+        $this->assertSame($built()->tags(), ['t-uppertag', 't-sub:1']);
         $this->assertSame($counter->get(), 2, 'expected first call to call all 4 levels.');
     }
 
@@ -553,29 +555,7 @@ abstract class TTCacheTest extends TestCase
             new BlogPost('nop', 'Learn Go the curved way', '...'),
         ];
 
-        /*
-         * Very hacky, but we are using reflection here to add a layer around
-         * the inner-most CacheStoreInterface that tracks the keys requested by the TaggedStore
-         * via $store->get(...). e.g.:
-         */
-        $reflClass = new \ReflectionClass(TTCache::class);
-        $reflProperty = $reflClass->getProperty('cache');
-        $reflProperty->setAccessible(true);
-        // This is the TaggedStore instance on TTCache. This would contain the CacheStoreInterface we want to track.
-        $taggedStore = $reflProperty->getValue($this->tt);
-        $reflClass = new \ReflectionClass(TaggedStore::class);
-        $reflProperty = $reflClass->getProperty('cache');
-        $reflProperty->setAccessible(true);
-        /**
-         * This is the inner-most CacheStoreInterface.
-         *
-         * @var CacheStoreInterface $origStore
-         */
-        $origStore = $reflProperty->getValue($taggedStore);
-
-        // We will add the layer around it, and set it back to the TaggedStore.
-        $store = new KeyTracker($origStore);
-        $reflProperty->setValue($taggedStore, $store);
+        $this->tt = $this->getTTCacheWithKeyTracker();
 
         $resultReaderStub = (object) [
             'result' => null,
@@ -611,7 +591,7 @@ abstract class TTCacheTest extends TestCase
             'k-'.$this->hash('Square\TTCache\TTCacheTest:blog-collection:ghi'),
             'k-'.$this->hash('Square\TTCache\TTCacheTest:blog-collection:klm'),
             'k-'.$this->hash('Square\TTCache\TTCacheTest:blog-collection:nop'),
-        ], $store->requestedKeys);
+        ], $this->keyTracker->getRequestedKeys());
 
         $this->assertInstanceOf(LoadResult::class, $resultReaderStub->result);
         $this->assertEmpty($resultReaderStub->result->loadedKeys());
@@ -623,19 +603,19 @@ abstract class TTCacheTest extends TestCase
             'Square\TTCache\TTCacheTest:blog-collection:nop',
         ], $resultReaderStub->result->missingKeys());
 
-        // When we call `built()` again, all the data should be pre-loaded and therefore come without talking to MC
+        // When we call `built()` again, all the data should be pre-loaded and therefore come with a single call to MC
         $resultReaderStub->result = null;
-        $store->requestedKeys = [];
+        $this->keyTracker->requestedKeys = [];
         $built();
         $this->assertSame([
             'k-'.$this->hash('full-collection'),
-        ], $store->requestedKeys);
+        ], $this->keyTracker->getRequestedKeys());
         $this->assertNull($resultReaderStub->result);
 
         // Clear tag for "abc" and change the title for "abc"
         $this->tt->clearTags('post:'.$coll[0]->id);
         $resultReaderStub->result = null;
-        $store->requestedKeys = [];
+        $this->keyTracker->requestedKeys = [];
         $coll[0]->title = 'Learn PHP the straight way';
         $this->assertSame([
             '<h1>Learn PHP the straight way</h1><hr /><div>...</div>',
@@ -644,10 +624,6 @@ abstract class TTCacheTest extends TestCase
             '<h1>Learn Rust the curved way</h1><hr /><div>...</div>',
             '<h1>Learn Go the curved way</h1><hr /><div>...</div>',
         ], $built());
-        $this->assertSame([
-            'k-'.$this->hash('full-collection'),
-            'k-'.$this->hash('Square\TTCache\TTCacheTest:blog-collection:abc'),
-        ], $store->requestedKeys);
         $this->assertInstanceOf(LoadResult::class, $resultReaderStub->result);
         $this->assertEquals([
             1 => 'Square\TTCache\TTCacheTest:blog-collection:def',
@@ -661,7 +637,7 @@ abstract class TTCacheTest extends TestCase
 
         // Newly cached value still contains all the tags. So clearing by another tag will also work.
         $this->tt->clearTags('post:'.$coll[1]->id);
-        $store->requestedKeys = [];
+        $this->keyTracker->requestedKeys = [];
         $resultReaderStub->result = null;
         $coll[1]->title = 'Learn Python the straight way';
         $this->assertEquals([
@@ -671,10 +647,6 @@ abstract class TTCacheTest extends TestCase
             '<h1>Learn Rust the curved way</h1><hr /><div>...</div>',
             '<h1>Learn Go the curved way</h1><hr /><div>...</div>',
         ], $built());
-        $this->assertSame([
-            'k-'.$this->hash('full-collection'),
-            'k-'.$this->hash('Square\TTCache\TTCacheTest:blog-collection:def'),
-        ], $store->requestedKeys);
         $this->assertInstanceOf(LoadResult::class, $resultReaderStub->result);
         $this->assertEquals([
             0 => 'Square\TTCache\TTCacheTest:blog-collection:abc',
@@ -722,6 +694,27 @@ abstract class TTCacheTest extends TestCase
     }
 
     /**
+     * When we ->load() a collection, if some of the keys were not found on the server, we should remember that
+     * and not go check the server agin for those keys
+     *
+     * @group debug
+     *
+     * @test
+     */
+    public function collection_non_loaded_members_dont_check_remote_cache_again()
+    {
+        $this->tt = $this->getTTCacheWithKeyTracker();
+        $this->tt->wrap([], function () {
+            $this->tt->load(['hello1', 'hello2', 'hello3']);
+
+            $this->tt->remember('hello1', fn () => 1);
+            $this->tt->remember('hello2', fn () => 2);
+            $this->tt->remember('hello3', fn () => 3);
+        });
+        $this->assertEquals(3, count($this->keyTracker->requestedKeys));
+    }
+
+    /**
      * @test
      */
     public function tag_hashes_match()
@@ -736,6 +729,6 @@ abstract class TTCacheTest extends TestCase
      */
     protected function hash(string $key): string
     {
-        return md5($key);
+        return $key;
     }
 }
