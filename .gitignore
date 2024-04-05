@@ -2,3 +2,4 @@
 TODO
 composer.lock
 vendor
+.phpactor.json
