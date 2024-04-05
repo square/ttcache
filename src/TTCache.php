@@ -10,6 +10,7 @@ use Square\TTCache\Store\CacheStoreInterface;
 use Square\TTCache\Store\TaggedStore;
 use Square\TTCache\Tags\HeritableTag;
 use Square\TTCache\Tags\TagInterface;
+use Stringable;
 
 /**
  * TagTreeCache is a caching class that builds a tree of tags as it caches values so that
@@ -39,7 +40,7 @@ class TTCache
         $this->keyHasher = $keyHasher ?? fn ($x) => md5($x);
     }
 
-    protected function hashedKey(string $k): string
+    protected function hashedKey(string|Stringable $k): string
     {
         return 'k-'.($this->keyHasher)($k);
     }
@@ -68,8 +69,11 @@ class TTCache
      *
      * @throws \Throwable
      */
-    public function remember(string $key, callable $cb, array $tags = [], ?int $ttl = null): Result
+    public function remember(string|Stringable $key, callable $cb, array $tags = [], ?int $ttl = null): Result
     {
+        if ($key instanceof TaggedKey) {
+            $tags = array_merge($tags, $key->tags);
+        }
         $hkey = $this->hashedkey($key);
         $htags = $this->hashTags(...$tags);
         $isRoot = $this->initTree();

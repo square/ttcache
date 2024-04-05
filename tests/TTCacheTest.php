@@ -65,6 +65,29 @@ abstract class TTCacheTest extends TestCase
     /**
      * @test
      */
+    public function tagged_key()
+    {
+        $key = new TaggedKey('testkey', ['tag']);
+        $v = $this->tt->remember($key, fn () => 'hello 1', ['other:tag'])->value();
+        $this->assertSame('hello 1', $v);
+        // now it's cached
+        $v = $this->tt->remember($key, fn () => 'hello 2', ['other:tag'])->value();
+        $this->assertSame('hello 1', $v);
+        // clear `tag`
+        $this->tt->clearTags('tag');
+        $v = $this->tt->remember($key, fn () => 'hello 2', ['other:tag'])->value();
+        $this->assertSame('hello 2', $v);
+        $v = $this->tt->remember($key, fn () => 'hello 3', ['other:tag'])->value();
+        $this->assertSame('hello 2', $v);
+
+        $this->tt->clearTags('other:tag');
+        $v = $this->tt->remember($key, fn () => 'hello 3', ['other:tag'])->value();
+        $this->assertSame('hello 3', $v);
+    }
+
+    /**
+     * @test
+     */
     public function avoids_root_tags_contamination()
     {
         $v = $this->tt->remember('testkey', fn () => 'hello 1', ['tag', 'other:tag'])->value();
