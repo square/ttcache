@@ -42,6 +42,10 @@ class TTCache
 
     protected function hashedKey(string|Stringable $k): string
     {
+        if (! is_string($k)) {
+            $k = $k->__toString();
+        }
+
         return 'k-'.($this->keyHasher)($k);
     }
 

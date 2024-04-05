@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Square\TTCache;
 
+use Closure;
 use Memcached;
 use PHPUnit\Framework\TestCase;
 use Square\TTCache\ReturnDirective\BypassCache;
@@ -17,6 +18,8 @@ abstract class TTCacheTest extends TestCase
     protected Memcached $mc;
 
     protected KeyTracker $keyTracker;
+
+    public Closure $keyhasher;
 
     public function setUp(): void
     {
@@ -67,6 +70,8 @@ abstract class TTCacheTest extends TestCase
      */
     public function tagging_key()
     {
+        $this->keyhasher = fn ($x) => md5($x);
+        $this->tt = $this->getTTCache();
         $key = new TaggingKey('testkey', ['tag']);
         $v = $this->tt->remember($key, fn () => 'hello 1', ['other:tag'])->value();
         $this->assertSame('hello 1', $v);
