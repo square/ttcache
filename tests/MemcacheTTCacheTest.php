@@ -20,7 +20,7 @@ class MemcacheTTCacheTest extends TTCacheTest
         $store = new ShardedMemcachedStore($this->mc);
         $store->setShardingKey('hello');
 
-        return new TTCache($store, fn ($a) => $a);
+        return new TTCache($store, $this->keyhasher ?? fn ($a) => $a);
     }
 
     public function getTTCacheWithKeyTracker(): TTCache
