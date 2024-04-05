@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Square\TTCache;
 
-class TaggedKey
+class TaggingKey
 {
     public function __construct(public string $key, public array $tags)
     {

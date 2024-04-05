@@ -71,7 +71,7 @@ class TTCache
      */
     public function remember(string|Stringable $key, callable $cb, array $tags = [], ?int $ttl = null): Result
     {
-        if ($key instanceof TaggedKey) {
+        if ($key instanceof TaggingKey) {
             $tags = array_merge($tags, $key->tags);
         }
         $hkey = $this->hashedkey($key);

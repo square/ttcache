@@ -65,9 +65,9 @@ abstract class TTCacheTest extends TestCase
     /**
      * @test
      */
-    public function tagged_key()
+    public function tagging_key()
     {
-        $key = new TaggedKey('testkey', ['tag']);
+        $key = new TaggingKey('testkey', ['tag']);
         $v = $this->tt->remember($key, fn () => 'hello 1', ['other:tag'])->value();
         $this->assertSame('hello 1', $v);
         // now it's cached
