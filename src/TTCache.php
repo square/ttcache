@@ -216,9 +216,10 @@ class TTCache
             $originalKey = $hashedKeysToOrigKeys[$k];
             $loadedKeys[$originalKey] = $keys[$originalKey];
             unset($keys[$originalKey]);
-            $tags = array_merge($tags, $tv->tags);
+            $tags[] = $tv->tags;
         }
-        $this->rawTags(array_keys($tags));
+        $tags = array_keys(array_merge(...$tags));
+        $this->rawTags($tags);
         $this->tree->addToCache($validValuesResult->value());
 
         // Add known misses to the local cache for the keys that were not found
