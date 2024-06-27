@@ -9,6 +9,7 @@ use Square\TTCache\ReturnDirective\BypassCacheInterface;
 use Square\TTCache\Store\CacheStoreInterface;
 use Square\TTCache\Store\TaggedStore;
 use Square\TTCache\Tags\HeritableTag;
+use Square\TTCache\Tags\RetiredTag;
 use Square\TTCache\Tags\TagInterface;
 use Stringable;
 
@@ -78,7 +79,20 @@ class TTCache
         if ($key instanceof TaggingKey) {
             $tags = array_merge($tags, $key->tags);
         }
-        $hkey = $this->hashedkey($key);
+        $localRetiredTags = [];
+        $heritableRetiredTags = [];
+        foreach ($tags as $i => $tag) {
+            if ($tag instanceof RetiredTag) {
+                if ($tag->isHeritable()) {
+                    $heritableRetiredTags[] = $tag;
+                } else {
+                    $localRetiredTags[] = $tag;
+                }
+            } else {
+                unset($tags[$i]);
+            }
+        }
+        $hkey = $this->hashedKey($key);
         $htags = $this->hashTags(...$tags);
         $isRoot = $this->initTree();
 
@@ -88,7 +102,11 @@ class TTCache
             $r = $this->tree->getFromCache($hkey);
             if ($r instanceof KnownMiss) {
                 $isKnownMiss = true;
-            } else {
+            } elseif ($r instanceof TentativelyVerifiedTaggedValue) {
+                $isKnownMiss = !$this->cache->verifyTentativelyTaggedValue($r, $localRetiredTags);
+            }
+           
+            if (!$isKnownMiss) {
                 $this->tree->child($r->tags);
                 $this->resetTree($isRoot);
 
@@ -97,7 +115,7 @@ class TTCache
         }
 
         if (! $isKnownMiss) { // If it's a known miss, don't bother checking the cache
-            $r = $this->cache->get($hkey);
+            $r = $this->cache->get($hkey, $localRetiredTags);
             if ($r->value()) {
                 $this->tree->child($r->value()->tags);
                 $this->resetTree($isRoot);
@@ -210,14 +228,17 @@ class TTCache
         $hashedKeysToOrigKeys = array_flip($hkeys);
 
         $loadedKeys = [];
-        $validValuesResult = $this->cache->getMultiple($hkeys);
+        $validValuesResult = $this->cache->preloadMultiple($hkeys);
+
+        $unverifiedTaggedValues = [];
+
         foreach ($validValuesResult->value() as $k => $tv) {
             $originalKey = $hashedKeysToOrigKeys[$k];
             $loadedKeys[$originalKey] = $keys[$originalKey];
             unset($keys[$originalKey]);
-            $this->rawTags(array_keys($tv->tags));
+            $unverifiedTaggedValues[$k] = TentativelyVerifiedTaggedValue::fromTaggedValue($tv);
         }
-        $this->tree->addToCache($validValuesResult->value());
+        $this->tree->addToCache($unverifiedTaggedValues);
 
         // Add known misses to the local cache for the keys that were not found
         $missingKeys = array_diff($hkeys, array_keys($validValuesResult->value()));

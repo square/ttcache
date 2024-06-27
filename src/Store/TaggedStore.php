@@ -4,8 +4,11 @@ declare(strict_types=1);
 
 namespace Square\TTCache\Store;
 
+use ArrayAccess;
 use Iterator;
 use Square\TTCache\TaggedValue;
+use Square\TTCache\Tags\RetiredTag;
+use Square\TTCache\TentativelyVerifiedTaggedValue;
 
 /**
  * Internal class meant to handle retrieving and storing tagged values for TTCache.
@@ -17,14 +20,33 @@ class TaggedStore
 
     private const TTL_CACHE_PREFIX = '__TTCache_TTL__';
 
+    /**
+     * @var array<string,RetiredTag>
+     */
+    protected $heritableRetiredTags = [];
+
     public function __construct(protected CacheStoreInterface $cache)
     {
     }
 
     /**
-     * Retrieve a single value from cache and verify its tags
+     * @param RetiredTag ...$retiredTags
+     * @return void
      */
-    public function get(string $key): StoreResult
+    public function addHeritableRetiredTag(RetiredTag ...$retiredTags): void
+    {
+        foreach ($retiredTags as $tag) {
+            $this->heritableRetiredTags[(string) $tag] = $tag;
+        }
+    }
+
+
+    /**
+     * Retrieve a single value from cache and verify its tags
+     * @param  string  $key  the key to retrieve from cache
+     * @param  array<int,RetiredTag> $retiredTags tags that should be ignored.
+     */
+    public function get(string $key, array $retiredTags = []): StoreResult
     {
         try {
             $r = $this->cache->get($key);
@@ -34,9 +56,10 @@ class TaggedStore
 
         if ($r) {
             /** @var TaggedValue $r */
+            $r->tags = $this->filterRetiredTags($r->tags, $retiredTags);
             $storedtags = array_keys($r->tags);
             $currentHashes = [];
-            if (! empty($storedtags)) {
+            if (!empty($storedtags)) {
                 try {
                     $currentHashes = $this->cache->getMultiple($storedtags);
                     if ($currentHashes instanceof Iterator) {
@@ -59,6 +82,7 @@ class TaggedStore
      * returns the value that was stored in cache
      *
      * @param  TaggedValue|mixed  $value
+     * @param array<int,mixed> $taghashes
      */
     public function store(string $key, ?int $ttl, array $taghashes, $value): StoreResult
     {
@@ -76,6 +100,7 @@ class TaggedStore
 
     /**
      * Retrieve multiple values from the cache and return the ones that have valid tags
+     * @param array<int,mixed> $keys
      */
     public function getMultiple(array $keys): StoreResult
     {
@@ -96,7 +121,7 @@ class TaggedStore
         $allTags = [];
         /** @var TaggedValue $tv */
         foreach ($r as $k => $tv) {
-            if (! $tv instanceof TaggedValue) {
+            if (!$tv instanceof TaggedValue) {
                 unset($r[$k]);
 
                 continue;
@@ -106,7 +131,7 @@ class TaggedStore
         $allTags = array_merge(...$allTags);
 
         $allCurrentTagHashes = [];
-        if (! empty($allTags)) {
+        if (!empty($allTags)) {
             try {
                 $allCurrentTagHashes = $this->cache->getMultiple($allTags);
                 if ($allCurrentTagHashes instanceof Iterator) {
@@ -130,7 +155,66 @@ class TaggedStore
     }
 
     /**
+     * Retrieve multiple values from the cache, and return everything w/o verifying tags.
+     * This is used in TTCache#load(), where keys needs to be fetched first. However, the tag verification
+     * step must happen in every `remember()` call, which is where some retired tags may be specified.
+     * @param array<int,mixed> $keys
+     */
+    public function preloadMultiple(array $keys): StoreResult
+    {
+        try {
+            $r = $this->cache->getMultiple($keys);
+        } catch (CacheStoreException $e) {
+            return new StoreResult([], $e);
+        }
+
+        if ($r instanceof Iterator) {
+            try {
+                $r = iterator_to_array($r);
+            } catch (CacheStoreException $e) {
+                return new StoreResult([], $e);
+            }
+        }
+
+        $allTags = [];
+        /** @var TaggedValue $tv */
+        foreach ($r as $k => $tv) {
+            if (!$tv instanceof TaggedValue) {
+                unset($r[$k]);
+
+                continue;
+            }
+            $allTags[] = array_keys($tv->tags);
+        }
+        $allTags = array_merge(...$allTags);
+
+        $allCurrentTagHashes = [];
+        if (!empty($allTags)) {
+            try {
+                $allCurrentTagHashes = $this->cache->getMultiple($allTags);
+                if ($allCurrentTagHashes instanceof Iterator) {
+                    $allCurrentTagHashes = iterator_to_array($allCurrentTagHashes);
+                }
+            } catch (CacheStoreException $e) {
+                return new StoreResult([], $e);
+            }
+        }
+
+        $results = [];
+        /** @var string $k */
+        /** @var TaggedValue $tv */
+        foreach ($r as $k => $tv) {
+            $invalidTags = $this->findInvalidTags($tv->tags, $allCurrentTagHashes);
+            $results[$k] = TentativelyVerifiedTaggedValue::fromTaggedValue($tv, $invalidTags);
+        }
+
+        return new StoreResult($results);
+    }
+
+    /**
      * Get the current taghashes from the cache store or create and store new ones if they don't exist
+     * @return array<string,mixed>
+     * @param array<int,mixed> $tags
      */
     public function fetchOrMakeTagHashes(array $tags, int $ttl = null): array
     {
@@ -151,7 +235,7 @@ class TaggedStore
             $tags = [$ttlTag, ...$tags];
         }
 
-        if (! empty($tags)) {
+        if (!empty($tags)) {
             try {
                 $tagHashes = $this->cache->getMultiple($tags);
                 if ($tagHashes instanceof Iterator) {
@@ -169,11 +253,11 @@ class TaggedStore
         // Find missing tag hashes
         $missingHashes = [];
         foreach ($tags as $tag) {
-            if (! array_key_exists($tag, $tagHashes)) {
+            if (!array_key_exists($tag, $tagHashes)) {
                 $missingHashes[$tag] = $this->generateHash();
             }
         }
-        if (! $roCache) {
+        if (!$roCache) {
             // Add missing hashes to MC
             $this->cache->setMultiple($missingHashes, self::TAGS_TTL);
             if ($ttl !== null) {
@@ -221,5 +305,43 @@ class TaggedStore
         }
 
         return true;
+    }
+    /**
+     * @param array<int,mixed> $localRetiredTags
+     */
+    public function verifyTentativelyTaggedValue(TentativelyVerifiedTaggedValue $tv, array $localRetiredTags): bool
+    {
+        $remainingInvalidTags = $this->filterRetiredTags($tv->invalidTags, $localRetiredTags);
+        return empty($remainingInvalidTags);
+    }
+
+    /**
+     * @param array<string,TagInterface> $tags
+     * @param array<int,RetiredTag> $retiredTags
+     * @return array
+     */
+    protected function filterRetiredTags(array $tags, array $retiredTags): array
+    {
+        $retiredTags = array_keys(array_merge($retiredTags, $this->heritableRetiredTags));
+        foreach ($retiredTags as $tag) {
+            unset($tags[$tag]);
+        }
+        return $tags;
+    }
+    /**
+     * @param array<string,string> $tagHashes
+     * @param array<string,string> $tagHashes
+     * @return array<string,string>
+     */
+    private function findInvalidTags(array $tagHashes, array|ArrayAccess $currentHashes): array
+    {
+        $invalidTags = [];
+        foreach ($tagHashes as $tag => $hash) {
+            if ($hash !== ($currentHashes[$tag] ?? null)) {
+                $invalidTags[$tag] = $hash;
+            }
+        }
+
+        return $invalidTags;
     }
 }
