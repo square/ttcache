@@ -211,12 +211,15 @@ class TTCache
 
         $loadedKeys = [];
         $validValuesResult = $this->cache->getMultiple($hkeys);
+        $tags = [];
         foreach ($validValuesResult->value() as $k => $tv) {
             $originalKey = $hashedKeysToOrigKeys[$k];
             $loadedKeys[$originalKey] = $keys[$originalKey];
             unset($keys[$originalKey]);
-            $this->rawTags(array_keys($tv->tags));
+            $tags[] = $tv->tags;
         }
+        $tags = array_keys(array_merge(...$tags));
+        $this->rawTags($tags);
         $this->tree->addToCache($validValuesResult->value());
 
         // Add known misses to the local cache for the keys that were not found
@@ -229,6 +232,7 @@ class TTCache
 
     /**
      * Applies a set of given tags without hashing them (useful for re-using tags directly)
+     * @param array<string> $tags
      */
     protected function rawTags(array $tags): void
     {
