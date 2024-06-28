@@ -103,7 +103,7 @@ class TTCache
             if ($r instanceof KnownMiss) {
                 $isKnownMiss = true;
             } elseif ($r instanceof TentativelyVerifiedTaggedValue) {
-                $isKnownMiss = !$this->cache->verifyTentativelyTaggedValue($r, $localRetiredTags);
+                $isKnownMiss = !$this->cache->verifyTentativelyVerifiedTaggedValue($r, $localRetiredTags);
             }
            
             if (!$isKnownMiss) {

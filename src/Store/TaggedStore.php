@@ -309,7 +309,7 @@ class TaggedStore
     /**
      * @param array<int,mixed> $localRetiredTags
      */
-    public function verifyTentativelyTaggedValue(TentativelyVerifiedTaggedValue $tv, array $localRetiredTags): bool
+    public function verifyTentativelyVerifiedTaggedValue(TentativelyVerifiedTaggedValue $tv, array $localRetiredTags): bool
     {
         $remainingInvalidTags = $this->filterRetiredTags($tv->invalidTags, $localRetiredTags);
         return empty($remainingInvalidTags);
