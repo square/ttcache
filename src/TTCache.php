@@ -88,7 +88,6 @@ class TTCache
                 } else {
                     $localRetiredTags[] = $tag;
                 }
-            } else {
                 unset($tags[$i]);
             }
         }
@@ -232,13 +231,25 @@ class TTCache
 
         $unverifiedTaggedValues = [];
 
+        $allTags = [];
         foreach ($validValuesResult->value() as $k => $tv) {
             $originalKey = $hashedKeysToOrigKeys[$k];
             $loadedKeys[$originalKey] = $keys[$originalKey];
             unset($keys[$originalKey]);
-            $unverifiedTaggedValues[$k] = TentativelyVerifiedTaggedValue::fromTaggedValue($tv);
+            $allTags[] = $k->tags;
         }
+        // Flatten into a single map of tags.
+        $allTags = array_merge(...$allTags);
+        $allInvalidTags = $this->cache->findInvalidTags($allTags);
+
+        foreach ($validValuesResult->value() as $k => $tv) {
+            $tags = $tv->tags;
+            $invalidTags = array_intersect($tags, $allInvalidTags);
+            $unverifiedTaggedValues[$k] = $this->cache->verifyTentativelyVerifiedTaggedValue($tv, $allInvalidTags);
+        }
+
         $this->tree->addToCache($unverifiedTaggedValues);
+
 
         // Add known misses to the local cache for the keys that were not found
         $missingKeys = array_diff($hkeys, array_keys($validValuesResult->value()));

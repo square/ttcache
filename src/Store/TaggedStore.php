@@ -333,7 +333,7 @@ class TaggedStore
      * @param array<string,string> $tagHashes
      * @return array<string,string>
      */
-    private function findInvalidTags(array $tagHashes, array|ArrayAccess $currentHashes): array
+    public function findInvalidTags(array $tagHashes, array|ArrayAccess $currentHashes): array
     {
         $invalidTags = [];
         foreach ($tagHashes as $tag => $hash) {
