@@ -24,10 +24,14 @@ class TaggedStore
     /**
      * Retrieve a single value from cache and verify its tags
      */
-    public function get(string $key): StoreResult
+    public function get(string $key, ?int $ttl = null): StoreResult
     {
         try {
-            $r = $this->cache->get($key);
+            if ($ttl !== null && $this->cache instanceof CanResetExpiryOnRead) {
+                return $this->cache->getAndResetExpiry($key, $ttl);
+            } else {
+                $r = $this->cache->get($key);
+            }
         } catch (CacheStoreException $e) {
             return new StoreResult(null, $e);
         }
@@ -77,10 +81,14 @@ class TaggedStore
     /**
      * Retrieve multiple values from the cache and return the ones that have valid tags
      */
-    public function getMultiple(array $keys): StoreResult
+    public function getMultiple(array $keys, ?int $ttl = null): StoreResult
     {
         try {
-            $r = $this->cache->getMultiple($keys);
+            if ($ttl !== null && $this->cache instanceof CanResetExpiryOnRead) {
+                $r = $this->cache->getMultipleAndResetExpiry($keys, $ttl);
+            } else {
+                $r = $this->cache->getMultiple($keys);
+            }
         } catch (CacheStoreException $e) {
             return new StoreResult([], $e);
         }
