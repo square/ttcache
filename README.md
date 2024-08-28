@@ -7,6 +7,8 @@ This allows recursive caching where clearing a value cached deep inside the tree
 
 This is useful when generating recursive datastructures such as `json` documents, `html` documents or `xml` documents for example.
 
+Watch: [Longhorn PHP 2023 Talk on TTCache](https://www.youtube.com/watch?v=GXdK6uVemh4)
+
 # Installation
 
 `composer require square/ttcache:^2.0`
