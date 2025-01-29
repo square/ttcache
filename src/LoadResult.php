@@ -22,8 +22,9 @@ class LoadResult
     protected ?Throwable $error = null;
 
     /**
-     * @param array $loadedKeys
-     * @param array $missingKeys
+     * @param  array  $loadedKeys
+     * @param  array  $missingKeys
+     * @param  Throwable|null  $error
      */
     public function __construct(array $loadedKeys, array $missingKeys, ?Throwable $error = null)
     {

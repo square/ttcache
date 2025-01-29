@@ -35,6 +35,9 @@ class ShardedMemcachedStore implements CacheStoreInterface
         $this->shardingKey = $key;
     }
 
+    /**
+     * @throws CacheStoreException
+     */
     protected function checkResultCode(): void
     {
         if (! in_array($this->mc->getResultCode(), self::MC_VALID_CODES)) {
@@ -42,6 +45,9 @@ class ShardedMemcachedStore implements CacheStoreInterface
         }
     }
 
+    /**
+     * @throws CacheStoreException
+     */
     public function get(string $key, mixed $default = null): mixed
     {
         $result = $this->mc->getByKey($this->shardingKey, $key);
@@ -50,6 +56,9 @@ class ShardedMemcachedStore implements CacheStoreInterface
         return $result;
     }
 
+    /**
+     * @throws CacheStoreException
+     */
     public function set(string $key, mixed $value, int|\DateInterval $ttl = null): bool
     {
         $result = $this->mc->setByKey($this->shardingKey, $key, $value, $ttl ?? 0);
@@ -58,6 +67,9 @@ class ShardedMemcachedStore implements CacheStoreInterface
         return $result;
     }
 
+    /**
+     * @throws CacheStoreException
+     */
     public function delete(string $key): bool
     {
         $result = $this->mc->deleteByKey($this->shardingKey, $key);
@@ -66,11 +78,17 @@ class ShardedMemcachedStore implements CacheStoreInterface
         return $result;
     }
 
+    /**
+     * @throws CacheStoreException
+     */
     public function clear(): bool
     {
         throw new CacheStoreException('not implemented on purpose');
     }
 
+    /**
+     * @throws CacheStoreException
+     */
     public function getMultiple(iterable $keys, mixed $default = null): iterable
     {
         $result = $this->mc->getMultiByKey($this->shardingKey, $keys);
@@ -79,6 +97,9 @@ class ShardedMemcachedStore implements CacheStoreInterface
         return $result;
     }
 
+    /**
+     * @throws CacheStoreException
+     */
     public function setMultiple(iterable $values, int|\DateInterval $ttl = null): bool
     {
         $result = $this->mc->setMultiByKey($this->shardingKey, $values, $ttl ?? 0);
@@ -87,6 +108,9 @@ class ShardedMemcachedStore implements CacheStoreInterface
         return $result;
     }
 
+    /**
+     * @throws CacheStoreException
+     */
     public function deleteMultiple(iterable $keys): bool
     {
         $result = $this->mc->deleteMultiByKey($this->shardingKey, $keys);
@@ -95,6 +119,10 @@ class ShardedMemcachedStore implements CacheStoreInterface
         return $result;
     }
 
+    /**
+     * @return never
+     * @throws CacheStoreException
+     */
     public function has(string $key): bool
     {
         throw new CacheStoreException('not implemented');

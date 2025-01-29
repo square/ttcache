@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 namespace Square\TTCache;
 
-class TaggingKey
+use Stringable;
+
+class TaggingKey implements Stringable
 {
     public function __construct(public string $key, public array $tags)
     {

@@ -27,6 +27,9 @@ class MemcachedStore implements CacheStoreInterface
         $this->mc = $mc;
     }
 
+    /**
+     * @throws CacheStoreException
+     */
     protected function checkResultCode(): void
     {
         if (! in_array($this->mc->getResultCode(), self::MC_VALID_CODES)) {
@@ -34,6 +37,9 @@ class MemcachedStore implements CacheStoreInterface
         }
     }
 
+    /**
+     * @throws CacheStoreException
+     */
     public function get(string $key, mixed $default = null): mixed
     {
         $result = $this->mc->get($key);
@@ -42,6 +48,9 @@ class MemcachedStore implements CacheStoreInterface
         return $result;
     }
 
+    /**
+     * @throws CacheStoreException
+     */
     public function set(string $key, mixed $value, int|\DateInterval $ttl = null): bool
     {
         if (is_null($ttl)) {
@@ -56,6 +65,9 @@ class MemcachedStore implements CacheStoreInterface
         return $result;
     }
 
+    /**
+     * @throws CacheStoreException
+     */
     public function delete(string $key): bool
     {
         $result = $this->mc->delete($key);
@@ -64,11 +76,18 @@ class MemcachedStore implements CacheStoreInterface
         return $result;
     }
 
-    public function clear(): bool
+    /**
+     * @return never
+     * @throws CacheStoreException
+     */
+    public function clear(): void
     {
         throw new CacheStoreException('not implemented on purpose');
     }
 
+    /**
+     * @throws CacheStoreException
+     */
     public function getMultiple(iterable $keys, mixed $default = null): iterable
     {
         $result = $this->mc->getMulti($keys);
@@ -77,6 +96,9 @@ class MemcachedStore implements CacheStoreInterface
         return $result;
     }
 
+    /**
+     * @throws CacheStoreException
+     */
     public function setMultiple(iterable $values, int|\DateInterval $ttl = null): bool
     {
         $result = $this->mc->setMulti($values, $ttl ?? 0);
@@ -85,14 +107,21 @@ class MemcachedStore implements CacheStoreInterface
         return $result;
     }
 
+    /**
+     * @throws CacheStoreException
+     */
     public function deleteMultiple(iterable $keys): bool
     {
-        $result = $this->mc->deleteMulti($keys);
+        $this->mc->deleteMulti($keys);
         $this->checkResultCode();
 
         return true;
     }
 
+    /**
+     * @return never
+     * @throws CacheStoreException
+     */
     public function has(string $key): bool
     {
         throw new CacheStoreException('not implemented');

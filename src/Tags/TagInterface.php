@@ -2,7 +2,9 @@
 
 namespace Square\TTCache\Tags;
 
-interface TagInterface
+use Stringable;
+
+interface TagInterface extends Stringable
 {
     public function __toString() : string;
 }

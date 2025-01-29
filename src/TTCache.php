@@ -57,7 +57,7 @@ class TTCache
     /**
      * Cache the result of a callback at the given key
      *
-     * @param  string  $key  The unique key where this value will be cached
+     * @param  string|Stringable  $key  The unique key where this value will be cached
      * @param  callable  $cb  The callback to compute the value to cache
      * @param  int|null  $ttl  How long this value should stay in cache. A ttl applied in a nested
      *                         call to `remember` will also apply to any value coming in a wrapping
